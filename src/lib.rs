@@ -8,13 +8,15 @@ pub struct LabBench {
 
 #[derive(Debug)]
 pub struct Nscope {
-    is_open: bool,
     path: String,
+    vid: u16,
+    pid: u16,
+    is_open: bool,
 }
 
 impl fmt::Debug for LabBench {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Available devices:{:#?}", self.nscopes)
+        write!(f, "Available devices:{:#X?}", self.nscopes)
     }
 }
 
@@ -41,9 +43,13 @@ impl LabBench {
         for d in self._hid_api.device_list() {
             if d.product_id() == 0xf3f6 && d.vendor_id() == 0x04d8 {
                 let path = String::from(d.path().to_str().expect("Failed to get device path"));
+                let vid = d.vendor_id();
+                let pid = d.product_id();
                 self.nscopes.push(Nscope {
-                    is_open: false,
                     path,
+                    vid,
+                    pid,
+                    is_open: false,
                 });
             }
         }
