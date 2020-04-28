@@ -44,7 +44,7 @@ impl LabBench {
 
     pub fn open(&mut self) -> Result<(), String> {
         if self.nscopes.len() > 0 {
-            self.nscopes[0].open(&self.hid_api)?
+            return self.nscopes[0].open(&self.hid_api);
         }
         Err(String::from("Help"))
     }
