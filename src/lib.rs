@@ -1,17 +1,12 @@
 use hidapi::HidApi;
 use std::fmt;
 
-pub struct LabBench {
-    _hid_api: HidApi,
-    nscopes: Vec<Nscope>,
-}
+mod nscope;
+use crate::nscope::Nscope;
 
-#[derive(Debug)]
-pub struct Nscope {
-    path: String,
-    vid: u16,
-    pid: u16,
-    is_open: bool,
+pub struct LabBench {
+    hid_api: HidApi,
+    nscopes: Vec<Nscope>,
 }
 
 impl fmt::Debug for LabBench {
@@ -22,7 +17,7 @@ impl fmt::Debug for LabBench {
 
 impl LabBench {
     pub fn new() -> Result<LabBench, String> {
-        let _hid_api = match HidApi::new() {
+        let hid_api = match HidApi::new() {
             Err(e) => {
                 eprintln!("Error: {}", e);
                 return Err(format!("{}", e));
@@ -31,7 +26,7 @@ impl LabBench {
         };
 
         let mut bench = LabBench {
-            _hid_api,
+            hid_api,
             nscopes: vec![],
         };
         bench.refresh();
@@ -40,18 +35,17 @@ impl LabBench {
 
     pub fn refresh(&mut self) {
         self.nscopes.clear();
-        for d in self._hid_api.device_list() {
+        for d in self.hid_api.device_list() {
             if d.product_id() == 0xf3f6 && d.vendor_id() == 0x04d8 {
-                let path = String::from(d.path().to_str().expect("Failed to get device path"));
-                let vid = d.vendor_id();
-                let pid = d.product_id();
-                self.nscopes.push(Nscope {
-                    path,
-                    vid,
-                    pid,
-                    is_open: false,
-                });
+                self.nscopes.push(Nscope::new(d));
             }
         }
+    }
+
+    pub fn open(&mut self) -> Result<(), String> {
+        if self.nscopes.len() > 0 {
+            self.nscopes[0].open(&self.hid_api)?
+        }
+        Err(String::from("Help"))
     }
 }
