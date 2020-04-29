@@ -1,9 +1,12 @@
 use nscope;
 
-fn main() {
-    let mut bench = nscope::LabBench::new().expect("Failed to initialize nscope::Context");
+fn main() -> Result<(), nscope::NscopeError> {
+    let mut bench = nscope::LabBench::new()?;
     bench.refresh();
-    println!("{:?}", bench);
-    bench.open().expect("Unable to open nScope");
-    println!("{:?}", bench);
+    print!("{:#?}", bench.nscopes());
+    bench.open("my awesome nScope")?;
+    print!("{:#?}", bench.nscopes());
+    bench.open_one(0, "my awesome nScope 2")?;
+    print!("{:#?}", bench.nscopes());
+    Ok(())
 }
