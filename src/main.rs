@@ -1,6 +1,8 @@
 use nscope;
 
 fn main() -> Result<(), nscope::NscopeError> {
+    nscope::version();
+
     let mut bench = nscope::LabBench::new()?;
     bench.refresh();
     print!("{:#?}", bench.nscopes());
