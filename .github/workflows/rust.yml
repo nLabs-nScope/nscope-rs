@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install xmllint
+    - name: Install dependencies
       run: sudo apt-get install libusb-1.0-0-dev
     - uses: actions/checkout@v2
     - name: Build
