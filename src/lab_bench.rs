@@ -80,3 +80,16 @@ impl LabBench {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn bench_refresh() {
+        let bench = LabBench::new();
+        assert!(bench.is_ok());
+        let mut bench = bench.unwrap();
+        let nscopes = bench.refresh();
+        assert_eq!(nscopes.len(), 0);
+    }
+}

@@ -17,3 +17,12 @@ pub fn version() {
     println!("{:?}", built_info::GIT_VERSION);
     println!("{:?}", built_info::CI_PLATFORM);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn version_works() {
+        assert!(built_info::GIT_VERSION.is_some());
+    }
+}
