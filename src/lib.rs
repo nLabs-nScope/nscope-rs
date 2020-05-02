@@ -12,15 +12,17 @@ pub enum NscopeError {
     UnknownError { message: String },
 }
 
-pub fn ver() -> Result<String, String> {
+pub fn ver() -> String {
     let cargo_version = env!("CARGO_PKG_VERSION").to_owned();
     let git_description = git_version!(args = ["--always", "--tags", "--dirty"]);
 
-    let build_str = match Version::parse(git_description) {
-        Ok(git_semver) => format!("{}", git_semver.pre[0].to_string()),
-        Err(_) => git_description.to_string(),
-    };
-    Ok(format!("{}+{}", cargo_version, build_str))
+    match Version::parse(git_description) {
+        Ok(git_semver) => match git_semver.pre.len() {
+            0 => cargo_version,
+            _ => format!("{}+{}", cargo_version, git_semver.pre[0].to_string()),
+        },
+        Err(_) => cargo_version,
+    }
 }
 
 #[cfg(test)]
@@ -61,9 +63,6 @@ mod tests {
     #[test]
     fn version_is_valid_semver() {
         let v = ver();
-        assert!(v.is_ok(), "invalid version: {}", v.unwrap());
-        let v = v.unwrap();
         assert!(Version::parse(&v).is_ok(), "invalid version: {}", v);
-        println!("v{}", ver().unwrap())
     }
 }
