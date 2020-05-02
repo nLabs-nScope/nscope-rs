@@ -13,16 +13,28 @@ pub enum NscopeError {
     UnknownError { message: String },
 }
 
-pub fn version() {
-    println!("{:?}", built_info::GIT_VERSION);
-    println!("{:?}", built_info::CI_PLATFORM);
+pub fn ver() -> String {
+    let mut build = String::from(env!("CARGO_PKG_VERSION"));
+    build += "+";
+
+    if built_info::GIT_VERSION.is_some() {
+        build.push_str(built_info::GIT_VERSION.unwrap_or(""));
+    }
+    if built_info::CI_PLATFORM.is_some() {
+        build.push_str(built_info::CI_PLATFORM.unwrap_or(""));
+    }
+    build
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use semver::Version;
+
     #[test]
-    fn version_works() {
-        assert!(built_info::GIT_VERSION.is_some());
+    fn version_is_valid_semver() {
+        let v = ver();
+        assert!(Version::parse(&v).is_ok());
+        println!("v{}", v);
     }
 }

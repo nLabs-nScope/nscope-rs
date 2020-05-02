@@ -85,7 +85,7 @@ impl LabBench {
 mod tests {
     use super::*;
     #[test]
-    fn bench_refresh() {
+    fn bench_can_refresh() {
         let bench = LabBench::new();
         assert!(bench.is_ok());
         let mut bench = bench.unwrap();
