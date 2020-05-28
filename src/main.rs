@@ -1,15 +1,15 @@
-use nscope;
-
 fn main() -> Result<(), nscope::NscopeError> {
+    println!("{:#?}", nscope::ver());
+
     let mut bench = nscope::LabBench::new()?;
     bench.refresh();
-    print!("{:#?}", bench.nscopes());
+    println!("{:#?}", bench.nscopes());
 
     bench.open("my awesome nScope")?;
-    print!("{:#?}", bench.nscopes());
+    println!("{:#?}", bench.nscopes());
 
     bench.open_one(0, "my awesome nScope 2")?;
-    print!("{:#?}", bench.nscopes());
+    println!("{:#?}", bench.nscopes());
 
     Ok(())
 }
