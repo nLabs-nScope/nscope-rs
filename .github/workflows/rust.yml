@@ -12,14 +12,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install dependencies
-      run: sudo apt-get install libusb-1.0-0-dev
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Fetch all tags
-      run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose -- --nocapture
+      - name: Install dependencies
+        run: sudo apt-get install libusb-1.0-0-dev
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose -- --nocapture
 
