@@ -17,11 +17,16 @@ pub fn ver() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use regex::Regex;
 
     #[test]
     fn cargo_version_matches_git_tag() {
         let cargo_version = env!("CARGO_PKG_VERSION").to_owned();
         let git_description = git_version!(args = ["--always", "--tags", "--dirty"]);
+
+        // Use a `+` to separate the tag info from build info in the git description
+        let re = Regex::new(r"(?P<ver>\S+)-(?P<build>\d+-g[0-9a-f]{7})").unwrap();
+        let git_description = re.replace_all(git_description, "${ver}+${build}");
 
         let cargo_semver = Version::parse(&cargo_version);
         let git_semver = Version::parse(&git_description);
@@ -42,7 +47,8 @@ mod tests {
         assert!(
             cargo_semver.major == git_semver.major
                 && cargo_semver.minor == git_semver.minor
-                && cargo_semver.patch == git_semver.patch,
+                && cargo_semver.patch == git_semver.patch
+                && cargo_semver.pre == git_semver.pre,
             "cargo version {} does not match git description {}",
             cargo_version,
             git_description
