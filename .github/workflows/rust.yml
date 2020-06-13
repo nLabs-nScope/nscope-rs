@@ -32,3 +32,15 @@ jobs:
           fetch-depth: 0
       - name: Run tests
         run: cargo test --verbose -- --nocapture
+
+  windows:
+    name: on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Run tests
+        run: cargo test --verbose -- --nocapture
