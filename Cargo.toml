@@ -2,6 +2,14 @@
 name = "nscope"
 version = "1.0.0-dev"
 authors = ["David Meyer <david@nscope.org>"]
+license = "GPL-3.0"
+description = """
+Communication with nScope devices
+"""
+homepage = "https://www.nscope.org"
+repository = "https://github.com/nLabs-nScope/nscope-rs"
+documentation = "https://github.com/nLabs-nScope/nscope-rs"
+readme = "README.md"
 edition = "2018"
 
 [dependencies]
