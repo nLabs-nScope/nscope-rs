@@ -1,35 +1,31 @@
 use git_version::git_version;
-use semver::Version;
+use regex::Regex;
 
 pub fn ver() -> String {
-    let cargo_version = env!("CARGO_PKG_VERSION").to_owned();
-    let git_description = git_version!(args = ["--always", "--tags", "--dirty"]);
+    let git_description = git_version!(
+        args = ["--always", "--tags", "--dirty"],
+        suffix = "",
+        cargo_suffix = ""
+    );
 
-    match Version::parse(git_description) {
-        Ok(git_semver) => match git_semver.pre.len() {
-            0 => cargo_version,
-            _ => format!("{}+{}", cargo_version, git_semver.pre[0].to_string()),
-        },
-        Err(_) => cargo_version,
-    }
+    // Use a `+` to separate the tag info from build info in the git description
+    let re = Regex::new(r"(?P<ver>\S+)-(?P<build>\d+-g[0-9a-f]{7})").unwrap();
+    re.replace_all(git_description, "${ver}+${build}")
+        .to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use regex::Regex;
+    use semver::Version;
 
     #[test]
-    fn cargo_version_matches_git_tag() {
+    fn cargo_version_matches_git_version() {
         let cargo_version = env!("CARGO_PKG_VERSION").to_owned();
-        let git_description = git_version!(args = ["--always", "--tags", "--dirty"]);
-
-        // Use a `+` to separate the tag info from build info in the git description
-        let re = Regex::new(r"(?P<ver>\S+)-(?P<build>\d+-g[0-9a-f]{7})").unwrap();
-        let git_description = re.replace_all(git_description, "${ver}+${build}");
+        let git_version = ver();
 
         let cargo_semver = Version::parse(&cargo_version);
-        let git_semver = Version::parse(&git_description);
+        let git_semver = Version::parse(&git_version);
 
         assert!(
             cargo_semver.is_ok(),
@@ -38,8 +34,8 @@ mod tests {
         );
         assert!(
             git_semver.is_ok(),
-            "invalid semver in git description: {}",
-            git_description
+            "invalid semver in git version: {}",
+            git_version
         );
         let cargo_semver = cargo_semver.unwrap();
         let git_semver = git_semver.unwrap();
@@ -49,9 +45,9 @@ mod tests {
                 && cargo_semver.minor == git_semver.minor
                 && cargo_semver.patch == git_semver.patch
                 && cargo_semver.pre == git_semver.pre,
-            "cargo version {} does not match git description {}",
+            "cargo version {} does not match git version {}",
             cargo_version,
-            git_description
+            git_version
         );
     }
 
