@@ -40,8 +40,13 @@ impl LabBench {
     pub fn available_scopes(&self) -> Vec<usize> {
         let mut available = Vec::new();
         for (idx, ns) in self.nscopes.iter().enumerate() {
-            match ns.try_borrow() {
-                Ok(_) => available.push(idx),
+            match ns.try_borrow_mut() {
+                Ok(mut ns) => {
+                    match ns.open() {
+                        Ok(_) => available.push(idx),
+                        Err(_) => ()
+                    }
+                },
                 Err(_) => ()
             }
         }

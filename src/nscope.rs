@@ -7,7 +7,6 @@ use std::fmt;
 use crate::HIDAPI;
 
 pub struct Nscope {
-    name: String,
     path: ffi::CString,
     vid: u16,
     pid: u16,
@@ -18,11 +17,10 @@ impl fmt::Debug for Nscope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "VID: 0x{:04X}, PID: 0x{:04X}, Open: {}, Name: {}",
+            "VID: 0x{:04X}, PID: 0x{:04X}, Open: {}",
             self.vid,
             self.pid,
             self.hid_device.is_some(),
-            self.name
         )
     }
 }
@@ -33,15 +31,13 @@ impl Nscope {
         let vid = d.vendor_id();
         let pid = d.product_id();
         Nscope {
-            name: String::from(""),
             path,
             vid,
             pid,
             hid_device: None,
         }
     }
-    pub fn open(&mut self, name: &str) -> Result<(), NscopeError> {
-        self.name = String::from(name);
+    pub fn open(&mut self) -> Result<(), NscopeError> {
         if self.hid_device.is_some() {
             return Err(BenchError {
                 message: "nScope is already open".to_string(),

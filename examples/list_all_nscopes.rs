@@ -10,5 +10,5 @@ fn main() {
 
 
     // You can also debug print the entire bench to see all scopes
-    println!("{:#?}", bench);
+    println!("{:?}", bench);
 }
