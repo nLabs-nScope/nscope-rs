@@ -37,4 +37,15 @@ impl LabBench {
         ns.try_borrow_mut().expect("Trying to borrow an already borrowed nScope")
     }
 
+    pub fn available_scopes(&self) -> Vec<usize> {
+        let mut available = Vec::new();
+        for (idx, ns) in self.nscopes.iter().enumerate() {
+            match ns.try_borrow() {
+                Ok(_) => available.push(idx),
+                Err(_) => ()
+            }
+        }
+        available
+    }
+
 }
