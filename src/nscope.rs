@@ -4,6 +4,7 @@ use hidapi::DeviceInfo;
 use hidapi::HidDevice;
 use std::ffi;
 use std::fmt;
+use crate::HIDAPI;
 
 pub struct Nscope {
     name: String,
@@ -39,14 +40,14 @@ impl Nscope {
             hid_device: None,
         }
     }
-    pub fn open(&mut self, api: &hidapi::HidApi, name: &str) -> Result<(), NscopeError> {
+    pub fn open(&mut self, name: &str) -> Result<(), NscopeError> {
         self.name = String::from(name);
         if self.hid_device.is_some() {
             return Err(BenchError {
                 message: "nScope is already open".to_string(),
             });
         }
-        match api.open_path(self.path.as_c_str()) {
+        match HIDAPI.open_path(self.path.as_c_str()) {
             Ok(device) => {
                 self.hid_device = Some(device);
                 Ok(())
