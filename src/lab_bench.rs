@@ -1,21 +1,26 @@
 use crate::nscope::Nscope;
 use std::fmt;
-use crate::HIDAPI;
+use crate::{HIDAPI, NscopeError};
 use std::cell::{RefCell, RefMut};
+use std::ops::{Deref, DerefMut};
+use std::ffi::CString;
 
 pub struct LabBench {
-    nscopes: Vec<RefCell<Nscope>>,
+    pub nscopes: Vec<DetectedNscope>,
 }
 
-impl fmt::Debug for LabBench {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Available devices: {:#X?}", self.nscopes)
-    }
+pub struct BorrowedNscope<'a> {
+    path: CString,
+    scope: RefMut<'a, Nscope>,
+}
+
+pub struct DetectedNscope {
+    path: CString,
+    scope: RefCell<Nscope>,
 }
 
 impl LabBench {
     pub fn new() -> LabBench {
-
         let mut bench = LabBench {
             nscopes: vec![],
         };
@@ -24,33 +29,71 @@ impl LabBench {
     }
 
     pub fn refresh(&mut self) {
-        self.nscopes.clear();
+        // self.nscopes.clear();
+
         for d in HIDAPI.device_list() {
             if d.product_id() == 0xf3f6 && d.vendor_id() == 0x04d8 {
-                self.nscopes.push(RefCell::new(Nscope::new(d)));
+                self.nscopes.push(DetectedNscope {
+                    path: d.path().to_owned(),
+                    scope: RefCell::new(Nscope::new(d)),
+                });
             }
         }
     }
+}
 
-    pub fn checkout(&self, i: usize) -> RefMut<Nscope> {
-        let ns = self.nscopes.get(i).unwrap();
-        ns.try_borrow_mut().expect("Trying to borrow an already borrowed nScope")
+impl DetectedNscope {
+    pub fn checkout(&self) -> Result<BorrowedNscope, NscopeError> {
+        let mut scope = self.scope.try_borrow_mut().unwrap();
+        scope.hid_device = Some(
+            HIDAPI.open_path(&self.path).unwrap()
+        );
+        Ok(BorrowedNscope { path: self.path.clone(), scope })
     }
+}
 
-    pub fn available_scopes(&self) -> Vec<usize> {
-        let mut available = Vec::new();
-        for (idx, ns) in self.nscopes.iter().enumerate() {
-            match ns.try_borrow_mut() {
-                Ok(mut ns) => {
-                    match ns.open() {
-                        Ok(_) => available.push(idx),
-                        Err(_) => ()
-                    }
-                },
-                Err(_) => ()
-            }
+impl BorrowedNscope<'_> {
+    pub fn checkin(mut self) {
+        self.scope.hid_device = None;
+    }
+}
+
+impl Drop for BorrowedNscope<'_> {
+    fn drop(&mut self) {
+        self.scope.hid_device = None
+    }
+}
+
+impl Deref for BorrowedNscope<'_> {
+    type Target = Nscope;
+    fn deref(&self) -> &Nscope {
+        &*self.scope
+    }
+}
+
+impl DerefMut for BorrowedNscope<'_> {
+    fn deref_mut(&mut self) -> &mut Nscope {
+        &mut *self.scope
+    }
+}
+
+impl fmt::Debug for LabBench {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "LabBench: {:#X?}", self.nscopes)
+    }
+}
+
+impl fmt::Debug for BorrowedNscope<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.scope)
+    }
+}
+
+impl fmt::Debug for DetectedNscope {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.scope.try_borrow() {
+            Ok(scope) => write!(f, "nScope: {:?}", scope),
+            Err(_) => write!(f, "checked out nScope"),
         }
-        available
     }
-
 }

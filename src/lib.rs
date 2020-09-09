@@ -1,6 +1,7 @@
 mod lab_bench;
 mod nscope;
 mod ver;
+
 pub use lab_bench::LabBench;
 pub use ver::ver;
 use hidapi::HidApi;
