@@ -12,18 +12,17 @@ use hidapi::HidApi;
 use hidapi::DeviceInfo;
 use crate::Nscope;
 use std::fmt;
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 
 pub struct LabBench {
     hid_devices: Vec<DeviceInfo>,
-    hid_api: Rc<RefCell<HidApi>>,
+    hid_api: Arc<RwLock<HidApi>>,
 }
 
 pub struct NscopeLink {
     available: bool,
     info: DeviceInfo,
-    hid_api: Rc<RefCell<HidApi>>,
+    hid_api: Arc<RwLock<HidApi>>,
 }
 
 impl LabBench {
@@ -31,34 +30,34 @@ impl LabBench {
         match HidApi::new() {
             Ok(hid_api) => Some(LabBench {
                 hid_devices: hid_api.device_list().map(|d| d.clone()).collect(),
-                hid_api: Rc::new(RefCell::new(hid_api)),
+                hid_api: Arc::new(RwLock::new(hid_api)),
             }),
             Err(_) => None
         }
     }
 
     pub fn refresh(&mut self) {
-        let mut api = self.hid_api.try_borrow_mut().unwrap();
+        let mut api = self.hid_api.write().unwrap();
         api.refresh_devices().expect("failed to refresh");
         self.hid_devices = api.device_list().map(|d| d.clone()).collect();
     }
 
     /// Returns iterator containing information about attached nScopes
     pub fn list(&self) -> impl Iterator<Item=NscopeLink> + '_ {
-        self.hid_devices.iter().filter_map(move |d| NscopeLink::new(d.clone(), Rc::clone(&self.hid_api)))
+        self.hid_devices.iter().filter_map(move |d| NscopeLink::new(d.clone(), Arc::clone(&self.hid_api)))
     }
 }
 
 
 impl NscopeLink {
-    fn new(info: DeviceInfo, hid_api: Rc<RefCell<HidApi>>) -> Option<NscopeLink> {
+    fn new(info: DeviceInfo, hid_api: Arc<RwLock<HidApi>>) -> Option<NscopeLink> {
         if info.vendor_id() == 0x04D8 && info.product_id() == 0xF3F6 {
-            let api = hid_api.try_borrow().unwrap();
+            let api = hid_api.read().unwrap();
             let available = match info.open_device(&api) {
                 Ok(_) => true,
                 Err(_) => false,
             };
-            Some(NscopeLink { available, info, hid_api: Rc::clone(&hid_api) })
+            Some(NscopeLink { available, info, hid_api: Arc::clone(&hid_api) })
         } else {
             None
         }

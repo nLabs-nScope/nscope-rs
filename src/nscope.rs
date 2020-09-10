@@ -10,14 +10,13 @@
 
 use hidapi::{HidDevice, HidApi, DeviceInfo};
 use std::fmt;
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 
 pub struct Nscope {
     vid: u16,
     pid: u16,
     hid_device: Option<HidDevice>,
-    hid_api: Rc<RefCell<HidApi>>,
+    hid_api: Arc<RwLock<HidApi>>,
 }
 
 impl fmt::Debug for Nscope {
@@ -33,14 +32,14 @@ impl fmt::Debug for Nscope {
 }
 
 impl Nscope {
-    pub(crate) fn new(dev: &DeviceInfo, hid_api: &Rc<RefCell<HidApi>>) -> Option<Nscope> {
-        let api = hid_api.try_borrow().unwrap();
+    pub(crate) fn new(dev: &DeviceInfo, hid_api: &Arc<RwLock<HidApi>>) -> Option<Nscope> {
+        let api = hid_api.read().unwrap();
         if let Ok(hid_device) = dev.open_device(&api) {
             Some(Nscope{
                 vid: dev.vendor_id(),
                 pid: dev.product_id(),
                 hid_device: Some(hid_device),
-                hid_api: Rc::clone(&hid_api),
+                hid_api: Arc::clone(&hid_api),
             })
         } else {
             None
