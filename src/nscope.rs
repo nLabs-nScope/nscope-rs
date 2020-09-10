@@ -1,14 +1,14 @@
-use hidapi::DeviceInfo;
-use hidapi::HidDevice;
+use hidapi::{HidDevice, HidApi, DeviceInfo};
 use std::fmt;
 
-pub struct Nscope {
+pub struct Nscope<'api> {
     vid: u16,
     pid: u16,
-    pub(crate) hid_device: Option<HidDevice>,
+    hid_device: Option<HidDevice>,
+    hid_api: &'api HidApi,
 }
 
-impl fmt::Debug for Nscope {
+impl fmt::Debug for Nscope<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -20,18 +20,17 @@ impl fmt::Debug for Nscope {
     }
 }
 
-impl Nscope {
-    pub fn operate(&mut self) {
-        self.pid = 0xFFFF;
-    }
-
-    pub(crate) fn new(d: &DeviceInfo) -> Nscope {
-        let vid = d.vendor_id();
-        let pid = d.product_id();
-        Nscope {
-            vid,
-            pid,
-            hid_device: None,
+impl<'api> Nscope<'api> {
+    pub(crate) fn new(dev: &DeviceInfo, hidapi: &'api HidApi) -> Option<Nscope<'api>> {
+        if let Ok(hid_device) = dev.open_device(hidapi) {
+            Some(Nscope{
+                vid: dev.vendor_id(),
+                pid: dev.product_id(),
+                hid_device: Some(hid_device),
+                hid_api: hidapi,
+            })
+        } else {
+            None
         }
     }
 }

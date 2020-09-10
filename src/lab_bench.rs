@@ -1,99 +1,75 @@
-use crate::nscope::Nscope;
+use hidapi::HidApi;
+use hidapi::DeviceInfo;
+use crate::Nscope;
 use std::fmt;
-use crate::{HIDAPI, NscopeError};
-use std::cell::{RefCell, RefMut};
-use std::ops::{Deref, DerefMut};
-use std::ffi::CString;
 
 pub struct LabBench {
-    pub nscopes: Vec<DetectedNscope>,
+    hid_api: HidApi
 }
 
-pub struct BorrowedNscope<'a> {
-    path: CString,
-    scope: RefMut<'a, Nscope>,
-}
-
-pub struct DetectedNscope {
-    path: CString,
-    scope: RefCell<Nscope>,
+pub struct NscopeInfo<'api> {
+    available: bool,
+    info: DeviceInfo,
+    hid_api: &'api HidApi,
 }
 
 impl LabBench {
-    pub fn new() -> LabBench {
-        let mut bench = LabBench {
-            nscopes: vec![],
-        };
-        bench.refresh();
-        bench
+    pub fn new() -> Option<LabBench> {
+        if let Ok(hid_api) = HidApi::new() {
+            Some(LabBench{hid_api})
+        } else {
+            None
+        }
+
     }
 
     pub fn refresh(&mut self) {
-        // self.nscopes.clear();
+        self.hid_api.refresh_devices().expect("poop");
+    }
 
-        for d in HIDAPI.device_list() {
-            if d.product_id() == 0xf3f6 && d.vendor_id() == 0x04d8 {
-                self.nscopes.push(DetectedNscope {
-                    path: d.path().to_owned(),
-                    scope: RefCell::new(Nscope::new(d)),
-                });
-            }
+    /// Returns iterator containing information about attached HID devices.
+    pub fn list(&self) -> impl Iterator<Item=NscopeInfo> + '_  {
+        self.hid_api.device_list().filter_map(move |d| NscopeInfo::new(d.clone(), &self.hid_api) )
+    }
+}
+
+
+impl<'api> NscopeInfo<'api> {
+    fn new(info: DeviceInfo, hid_api: &'api HidApi) -> Option<NscopeInfo> {
+        if info.vendor_id() == 0x04D8 && info.product_id() == 0xF3F6 {
+            let available = match info.open_device(hid_api) {
+                Ok(_) => true,
+                Err(_) => false,
+            };
+            Some(NscopeInfo { available, info, hid_api})
+        } else {
+            None
         }
-    }
-}
 
-impl DetectedNscope {
-    pub fn checkout(&self) -> Result<BorrowedNscope, NscopeError> {
-        let mut scope = self.scope.try_borrow_mut().unwrap();
-        scope.hid_device = Some(
-            HIDAPI.open_path(&self.path).unwrap()
-        );
-        Ok(BorrowedNscope { path: self.path.clone(), scope })
     }
-}
 
-impl BorrowedNscope<'_> {
-    pub fn checkin(mut self) {
-        self.scope.hid_device = None;
-    }
-}
-
-impl Drop for BorrowedNscope<'_> {
-    fn drop(&mut self) {
-        self.scope.hid_device = None
-    }
-}
-
-impl Deref for BorrowedNscope<'_> {
-    type Target = Nscope;
-    fn deref(&self) -> &Nscope {
-        &*self.scope
-    }
-}
-
-impl DerefMut for BorrowedNscope<'_> {
-    fn deref_mut(&mut self) -> &mut Nscope {
-        &mut *self.scope
+    pub fn open(&self) -> Option<Nscope> {
+        Nscope::new(&self.info, self.hid_api)
     }
 }
 
 impl fmt::Debug for LabBench {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "LabBench: {:#X?}", self.nscopes)
+        write!(
+            f,
+            "LabBench: {:#?}", self.list().collect::<Vec<NscopeInfo>>()
+        )
     }
 }
 
-impl fmt::Debug for BorrowedNscope<'_> {
+impl fmt::Debug for NscopeInfo<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.scope)
-    }
-}
-
-impl fmt::Debug for DetectedNscope {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.scope.try_borrow() {
-            Ok(scope) => write!(f, "nScope: {:?}", scope),
-            Err(_) => write!(f, "checked out nScope"),
-        }
+        write!(
+            f,
+            "VID: 0x{:04X}, PID: 0x{:04X}, Available: {}",
+            self.info.vendor_id(),
+            self.info.product_id(),
+            self.available
+        )
     }
 }
