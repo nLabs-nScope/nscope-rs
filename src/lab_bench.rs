@@ -1,55 +1,71 @@
+/***************************************************************************************************
+ *
+ *  nLabs, LLC
+ *  https://nscope.org
+ *  Copyright(c) 2020. All Rights Reserved
+ *
+ *  This file is part of the nScope API
+ *
+ **************************************************************************************************/
+
 use hidapi::HidApi;
 use hidapi::DeviceInfo;
 use crate::Nscope;
 use std::fmt;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct LabBench {
-    hid_api: HidApi
+    hid_devices: Vec<DeviceInfo>,
+    hid_api: Rc<RefCell<HidApi>>,
 }
 
-pub struct NscopeInfo<'api> {
+pub struct NscopeLink {
     available: bool,
     info: DeviceInfo,
-    hid_api: &'api HidApi,
+    hid_api: Rc<RefCell<HidApi>>,
 }
 
 impl LabBench {
     pub fn new() -> Option<LabBench> {
-        if let Ok(hid_api) = HidApi::new() {
-            Some(LabBench{hid_api})
-        } else {
-            None
+        match HidApi::new() {
+            Ok(hid_api) => Some(LabBench {
+                hid_devices: hid_api.device_list().map(|d| d.clone()).collect(),
+                hid_api: Rc::new(RefCell::new(hid_api)),
+            }),
+            Err(_) => None
         }
-
     }
 
     pub fn refresh(&mut self) {
-        self.hid_api.refresh_devices().expect("poop");
+        let mut api = self.hid_api.try_borrow_mut().unwrap();
+        api.refresh_devices().expect("failed to refresh");
+        self.hid_devices = api.device_list().map(|d| d.clone()).collect();
     }
 
-    /// Returns iterator containing information about attached HID devices.
-    pub fn list(&self) -> impl Iterator<Item=NscopeInfo> + '_  {
-        self.hid_api.device_list().filter_map(move |d| NscopeInfo::new(d.clone(), &self.hid_api) )
+    /// Returns iterator containing information about attached nScopes
+    pub fn list(&self) -> impl Iterator<Item=NscopeLink> + '_ {
+        self.hid_devices.iter().filter_map(move |d| NscopeLink::new(d.clone(), Rc::clone(&self.hid_api)))
     }
 }
 
 
-impl<'api> NscopeInfo<'api> {
-    fn new(info: DeviceInfo, hid_api: &'api HidApi) -> Option<NscopeInfo> {
+impl NscopeLink {
+    fn new(info: DeviceInfo, hid_api: Rc<RefCell<HidApi>>) -> Option<NscopeLink> {
         if info.vendor_id() == 0x04D8 && info.product_id() == 0xF3F6 {
-            let available = match info.open_device(hid_api) {
+            let api = hid_api.try_borrow().unwrap();
+            let available = match info.open_device(&api) {
                 Ok(_) => true,
                 Err(_) => false,
             };
-            Some(NscopeInfo { available, info, hid_api})
+            Some(NscopeLink { available, info, hid_api: Rc::clone(&hid_api) })
         } else {
             None
         }
-
     }
 
     pub fn open(&self) -> Option<Nscope> {
-        Nscope::new(&self.info, self.hid_api)
+        Nscope::new(&self.info, &self.hid_api)
     }
 }
 
@@ -57,12 +73,12 @@ impl fmt::Debug for LabBench {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "LabBench: {:#?}", self.list().collect::<Vec<NscopeInfo>>()
+            "LabBench: {:#?}", self.list().collect::<Vec<NscopeLink>>()
         )
     }
 }
 
-impl fmt::Debug for NscopeInfo<'_> {
+impl fmt::Debug for NscopeLink {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
