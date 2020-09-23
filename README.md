@@ -3,6 +3,6 @@
 [![Documentation](https://docs.rs/nscope/badge.svg)](https://docs.rs/nscope)
 [![GitHub](https://img.shields.io/github/license/nlabs-nscope/nscope-rs)](LICENSE)
 
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/nlabs-nscope/nscope-rs/Cargo%20Test)](https://github.com/nLabs-nScope/nscope-rs/actions)
+![Cargo Test](https://github.com/nLabs-nScope/nscope-rs/workflows/Cargo%20Test/badge.svg)
 
 A Rust implementation of the nScope API.
