@@ -8,11 +8,10 @@
  *
  **************************************************************************************************/
 
-use std::{thread, time};
 use nscope::{LabBench, Nscope};
+use std::{thread, time};
 
 fn main() {
-
     // Create a LabBench
     let bench = LabBench::new().unwrap();
 
@@ -23,9 +22,7 @@ fn main() {
         thread::sleep(time::Duration::from_millis(50));
         for n in nscopes.iter() {
             let data = n.data.read().unwrap();
-            println!("{:?} {}",data.power_state, data.power_usage);
+            println!("{:?} {}", data.power_state, data.power_usage);
         }
     }
-
-
 }

@@ -1,3 +1,13 @@
+/***************************************************************************************************
+ *
+ *  nLabs, LLC
+ *  https://nscope.org
+ *  Copyright(c) 2020. All Rights Reserved
+ *
+ *  This file is part of the nScope API
+ *
+ **************************************************************************************************/
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PowerState {
     PowerOff,
@@ -14,7 +24,7 @@ impl From<u8> for PowerState {
             1 => PowerState::PowerOn,
             2 => PowerState::Shorted,
             3 => PowerState::Overcurrent,
-            _ => PowerState::Unknown
+            _ => PowerState::Unknown,
         }
     }
 }
@@ -28,7 +38,7 @@ pub(super) struct StatusResponse {
 }
 
 impl StatusResponse {
-    pub(crate) fn new(buf: &[u8]) -> StatusResponse {
+    pub(crate) fn new(buf: &[u8]) -> Self {
         StatusResponse {
             fw_version: buf[0] & 0x3F,
             power_state: PowerState::from((buf[0] & 0xC0) >> 6),

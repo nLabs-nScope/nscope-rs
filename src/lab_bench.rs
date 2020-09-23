@@ -8,9 +8,9 @@
  *
  **************************************************************************************************/
 
-use hidapi::HidApi;
-use hidapi::DeviceInfo;
 use crate::Nscope;
+use hidapi::DeviceInfo;
+use hidapi::HidApi;
 use std::fmt;
 use std::sync::{Arc, RwLock};
 
@@ -26,13 +26,13 @@ pub struct NscopeLink {
 }
 
 impl LabBench {
-    pub fn new() -> Option<LabBench> {
+    pub fn new() -> Option<Self> {
         match HidApi::new() {
             Ok(hid_api) => Some(LabBench {
                 hid_devices: hid_api.device_list().cloned().collect(),
                 hid_api: Arc::new(RwLock::new(hid_api)),
             }),
-            Err(_) => None
+            Err(_) => None,
         }
     }
 
@@ -43,18 +43,23 @@ impl LabBench {
     }
 
     /// Returns iterator containing information about attached nScopes
-    pub fn list(&self) -> impl Iterator<Item=NscopeLink> + '_ {
-        self.hid_devices.iter().filter_map(move |d| NscopeLink::new(d.clone(), Arc::clone(&self.hid_api)))
+    pub fn list(&self) -> impl Iterator<Item = NscopeLink> + '_ {
+        self.hid_devices
+            .iter()
+            .filter_map(move |d| NscopeLink::new(d.clone(), Arc::clone(&self.hid_api)))
     }
 }
-
 
 impl NscopeLink {
     fn new(info: DeviceInfo, hid_api: Arc<RwLock<HidApi>>) -> Option<NscopeLink> {
         if info.vendor_id() == 0x04D8 && info.product_id() == 0xF3F6 {
             let api = hid_api.read().unwrap();
             let available = info.open_device(&api).is_ok();
-            Some(NscopeLink { available, info, hid_api: Arc::clone(&hid_api) })
+            Some(NscopeLink {
+                available,
+                info,
+                hid_api: Arc::clone(&hid_api),
+            })
         } else {
             None
         }
@@ -70,7 +75,8 @@ impl fmt::Debug for LabBench {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "LabBench: {:#?}", self.list().collect::<Vec<NscopeLink>>()
+            "LabBench: {:#?}",
+            self.list().collect::<Vec<NscopeLink>>()
         )
     }
 }

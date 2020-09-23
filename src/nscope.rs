@@ -9,29 +9,16 @@
  **************************************************************************************************/
 
 mod commands;
+mod data;
 mod responses;
 
-use hidapi::{HidDevice, HidApi, DeviceInfo};
-use std::{fmt, thread};
-use std::thread::JoinHandle;
-use std::sync::{mpsc, RwLock, Arc};
-use std::sync::mpsc::{Receiver, Sender};
 use commands::Command;
-
-
-pub struct NscopeData {
-    pub power_state: responses::PowerState,
-    pub power_usage: f32,
-}
-
-impl NscopeData {
-    fn new() -> NscopeData {
-        NscopeData {
-            power_state: responses::PowerState::Unknown,
-            power_usage: 0.0,
-        }
-    }
-}
+use data::NscopeData;
+use hidapi::{DeviceInfo, HidApi, HidDevice};
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{mpsc, Arc, RwLock};
+use std::thread::JoinHandle;
+use std::{fmt, thread};
 
 pub struct Nscope {
     vid: u16,
@@ -43,27 +30,20 @@ pub struct Nscope {
 
 impl fmt::Debug for Nscope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "VID: 0x{:04X}, PID: 0x{:04X}",
-            self.vid,
-            self.pid,
-        )
+        write!(f, "VID: 0x{:04X}, PID: 0x{:04X}", self.vid, self.pid,)
     }
 }
 
 /// Create a new Nscope object
 impl Nscope {
-    pub(crate) fn new(dev: &DeviceInfo, hid_api: &HidApi) -> Option<Nscope> {
-
+    pub(crate) fn new(dev: &DeviceInfo, hid_api: &HidApi) -> Option<Self> {
         // Open the hid_device
         if let Ok(hid_device) = dev.open_device(hid_api) {
-
             // If we're able to open it
             let (command_tx, command_rx) = mpsc::channel();
 
             let data = Arc::new(RwLock::new(NscopeData::new()));
-            let data2 = Arc::clone(&data);
+            let data_clone = Arc::clone(&data);
 
             Some(Nscope {
                 vid: dev.vendor_id(),
@@ -71,7 +51,7 @@ impl Nscope {
                 data,
                 command_tx,
                 join_handle: Some(thread::spawn(move || {
-                    Nscope::run(hid_device, command_rx, data2)
+                    Nscope::run(hid_device, command_rx, data_clone)
                 })),
             })
         } else {
@@ -80,7 +60,6 @@ impl Nscope {
     }
 
     fn run(hid_device: HidDevice, command_rx: Receiver<Command>, data: Arc<RwLock<NscopeData>>) {
-
         let mut buf = [0u8; 64];
 
         loop {
@@ -88,14 +67,16 @@ impl Nscope {
             {
                 if let Ok(command) = command_rx.try_recv() {
                     match command {
-                        Command::Quit => break
+                        Command::Quit => break,
                     }
                 } else {
                     hid_device.write(&commands::NULL_REQ).unwrap();
                 }
             }
 
-            hid_device.read(&mut buf[..]).expect("Cannot Read from device");
+            hid_device
+                .read(&mut buf[..])
+                .expect("Cannot Read from device");
 
             let response = responses::StatusResponse::new(&buf);
             {
@@ -106,7 +87,6 @@ impl Nscope {
         }
     }
 }
-
 
 /// When an Nscope goes out of scope, we need to exit the IO loop
 impl Drop for Nscope {

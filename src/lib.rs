@@ -8,12 +8,11 @@
  *
  **************************************************************************************************/
 
-
 mod lab_bench;
 mod nscope;
 mod ver;
 
-pub use ver::ver;
+pub use crate::nscope::Nscope;
 pub use lab_bench::LabBench;
 pub use lab_bench::NscopeLink;
-pub use crate::nscope::Nscope;
+pub use ver::ver;

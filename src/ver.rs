@@ -1,3 +1,13 @@
+/***************************************************************************************************
+ *
+ *  nLabs, LLC
+ *  https://nscope.org
+ *  Copyright(c) 2020. All Rights Reserved
+ *
+ *  This file is part of the nScope API
+ *
+ **************************************************************************************************/
+
 use git_version::git_version;
 use regex::Regex;
 
