@@ -8,45 +8,47 @@ on:
 
 jobs:
   linux:
-    name: on Linux
+    name: linux tests
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install dependencies
+      - name: install dependencies
         run: sudo apt-get install libusb-1.0-0-dev
-      - name: Checkout
+      - name: checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Static Checks
+      - name: static checks
         run: cargo clippy --all-targets --all-features -- -D warnings
-      - name: Run tests
+      - name: run tests
         run: cargo test --verbose -- --nocapture
 
   macos:
-    name: on Mac OS
+    name: macos tests
     runs-on: macos-latest
 
     steps:
-      - name: Checkout
+      - name: install dependencies
+        run: rustup component add clippy --toolchain stable-x86_64-apple-darwin
+      - name: checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Static Checks
+      - name: static checks
         run: cargo clippy --all-targets --all-features -- -D warnings
-      - name: Run tests
+      - name: run tests
         run: cargo test --verbose -- --nocapture
 
   windows:
-    name: on Windows
+    name: windows tests
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
+      - name: checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Static Checks
+      - name: static checks
         run: cargo clippy --all-targets --all-features -- -D warnings
-      - name: Run tests
+      - name: run tests
         run: cargo test --verbose -- --nocapture
