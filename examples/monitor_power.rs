@@ -14,10 +14,18 @@ use nscope::{LabBench, Nscope};
 fn main() {
 
     // Create a LabBench
-    let bench = nscope::LabBench::new().unwrap();
+    let bench = LabBench::new().unwrap();
 
     // Open all available nScope links
     let nscopes: Vec<Nscope> = bench.list().filter_map(|nsl| nsl.open()).collect();
+
+    loop {
+        thread::sleep(time::Duration::from_millis(50));
+        for n in nscopes.iter() {
+            let data = n.data.read().unwrap();
+            println!("{:?} {}",data.power_state, data.power_usage);
+        }
+    }
 
 
 }

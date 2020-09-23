@@ -18,6 +18,8 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Static Checks
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run tests
         run: cargo test --verbose -- --nocapture
 
@@ -30,6 +32,8 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Static Checks
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run tests
         run: cargo test --verbose -- --nocapture
 
@@ -42,5 +46,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Static Checks
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run tests
         run: cargo test --verbose -- --nocapture
