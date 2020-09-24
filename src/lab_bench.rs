@@ -8,7 +8,7 @@
  *
  **************************************************************************************************/
 
-use crate::nscope::Nscope;
+use crate::scope::Nscope;
 use hidapi::DeviceInfo;
 use hidapi::HidApi;
 use std::fmt;

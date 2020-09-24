@@ -9,12 +9,12 @@
  **************************************************************************************************/
 
 mod lab_bench;
-mod nscope;
+mod scope;
 mod ver;
 
 pub use lab_bench::LabBench;
 pub use lab_bench::NscopeLink;
-pub use nscope::power::PowerState;
-pub use nscope::power::PowerStatus;
-pub use nscope::Nscope;
+pub use scope::power::PowerState;
+pub use scope::power::PowerStatus;
+pub use scope::Nscope;
 pub use ver::ver;
