@@ -8,22 +8,24 @@
  *
  **************************************************************************************************/
 
+/// Storage class for the nScope power status
+#[derive(Debug, Copy, Clone)]
 pub struct PowerStatus {
-    pub state: State,
+    pub state: PowerState,
     pub usage: f32,
 }
 
 impl PowerStatus {
     pub(super) fn new() -> Self {
         PowerStatus {
-            state: State::Unknown,
+            state: PowerState::Unknown,
             usage: 0.0,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum State {
+pub enum PowerState {
     PowerOff,
     PowerOn,
     Shorted,
@@ -31,14 +33,14 @@ pub enum State {
     Unknown,
 }
 
-impl From<u8> for State {
+impl From<u8> for PowerState {
     fn from(orig: u8) -> Self {
         match orig {
-            0 => State::PowerOff,
-            1 => State::PowerOn,
-            2 => State::Shorted,
-            3 => State::Overcurrent,
-            _ => State::Unknown,
+            0 => PowerState::PowerOff,
+            1 => PowerState::PowerOn,
+            2 => PowerState::Shorted,
+            3 => PowerState::Overcurrent,
+            _ => PowerState::Unknown,
         }
     }
 }

@@ -9,17 +9,19 @@
  **************************************************************************************************/
 
 mod commands;
-mod power;
+pub mod power;
 
 use commands::Command;
 
-use crate::nscope::power::PowerStatus;
+use self::power::PowerStatus;
+
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread::JoinHandle;
-use std::{fmt, thread};
+use std::{fmt, io, thread};
 
+/// Object for accessing an nScope
 pub struct Nscope {
     pub vid: u16,
     pub pid: u16,
@@ -76,14 +78,14 @@ impl Nscope {
                     match command {
                         Command::Quit => break,
                     }
-                } else {
-                    hid_device.write(&commands::NULL_REQ).unwrap();
+                } else if hid_device.write(&commands::NULL_REQ).is_err() {
+                    break;
                 }
             }
 
-            hid_device
-                .read(&mut buf[..])
-                .expect("Cannot Read from device");
+            if hid_device.read(&mut buf[..]).is_err() {
+                break;
+            }
 
             let response = StatusResponse::new(&buf);
 
@@ -96,12 +98,18 @@ impl Nscope {
         }
     }
 
-    pub fn power_usage(&self) -> f32 {
-        self.power_status.read().unwrap().usage
+    pub fn power_status(&self) -> Result<power::PowerStatus, io::Error> {
+        if !self.is_connected() {
+            return Err(io::Error::new(
+                io::ErrorKind::ConnectionAborted,
+                "nScope connection aborted",
+            ));
+        }
+        Ok(*self.power_status.read().unwrap())
     }
 
-    pub fn power_state(&self) -> power::State {
-        self.power_status.read().unwrap().state
+    pub fn is_connected(&self) -> bool {
+        Arc::strong_count(&self.power_status) > 1
     }
 }
 
@@ -109,7 +117,7 @@ impl Nscope {
 impl Drop for Nscope {
     fn drop(&mut self) {
         // Send a quit command to the IO loop
-        self.command_tx.send(Command::Quit).unwrap();
+        let _ = self.command_tx.send(Command::Quit);
 
         // Wait for the loop to end
         if self.join_handle.is_some() {
@@ -121,7 +129,7 @@ impl Drop for Nscope {
 #[derive(Debug)]
 struct StatusResponse {
     fw_version: u8,
-    power_state: power::State,
+    power_state: power::PowerState,
     power_usage: u8,
     request_id: u8,
 }
@@ -130,7 +138,7 @@ impl StatusResponse {
     pub(crate) fn new(buf: &[u8]) -> Self {
         StatusResponse {
             fw_version: buf[0] & 0x3F,
-            power_state: power::State::from((buf[0] & 0xC0) >> 6),
+            power_state: power::PowerState::from((buf[0] & 0xC0) >> 6),
             power_usage: buf[1],
             request_id: buf[2],
         }

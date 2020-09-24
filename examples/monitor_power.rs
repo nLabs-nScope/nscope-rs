@@ -8,7 +8,7 @@
  *
  **************************************************************************************************/
 
-use nscope::{LabBench, Nscope};
+use nscope::{LabBench, Nscope}; //, PowerState, PowerStatus};
 use std::{thread, time};
 
 fn main() {
@@ -16,12 +16,22 @@ fn main() {
     let bench = LabBench::new().unwrap();
 
     // Open all available nScope links
-    let nscopes: Vec<Nscope> = bench.list().filter_map(|nsl| nsl.open()).collect();
+    let mut nscopes: Vec<Nscope> = bench.list().filter_map(|nsl| nsl.open()).collect();
 
     loop {
         thread::sleep(time::Duration::from_millis(50));
+
+        nscopes.retain(|n| n.is_connected());
+
         for n in nscopes.iter() {
-            println!("{:?} {}", n.power_state(), n.power_usage());
+            match n.power_status() {
+                Ok(status) => println!("{:?} {}", status.state, status.usage),
+                Err(error) => println!("{}", error),
+            }
+        }
+
+        if nscopes.is_empty() {
+            break;
         }
     }
 }
