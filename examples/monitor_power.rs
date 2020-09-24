@@ -21,8 +21,7 @@ fn main() {
     loop {
         thread::sleep(time::Duration::from_millis(50));
         for n in nscopes.iter() {
-            let data = n.data.read().unwrap();
-            println!("{:?} {}", data.power_state, data.power_usage);
+            println!("{:?} {}", n.power_state(), n.power_usage());
         }
     }
 }

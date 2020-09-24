@@ -9,11 +9,11 @@
  **************************************************************************************************/
 
 mod commands;
-mod data;
-mod responses;
+mod power;
 
 use commands::Command;
-use data::NscopeData;
+
+use crate::nscope::power::PowerStatus;
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, RwLock};
@@ -21,9 +21,10 @@ use std::thread::JoinHandle;
 use std::{fmt, thread};
 
 pub struct Nscope {
-    vid: u16,
-    pid: u16,
-    pub data: Arc<RwLock<NscopeData>>,
+    pub vid: u16,
+    pub pid: u16,
+    power_status: Arc<RwLock<PowerStatus>>,
+
     command_tx: Sender<Command>,
     join_handle: Option<JoinHandle<()>>,
 }
@@ -40,18 +41,20 @@ impl Nscope {
         // Open the hid_device
         if let Ok(hid_device) = dev.open_device(hid_api) {
             // If we're able to open it
-            let (command_tx, command_rx) = mpsc::channel();
+            let (command_tx, command_rx) = mpsc::channel::<Command>();
 
-            let data = Arc::new(RwLock::new(NscopeData::new()));
-            let data_clone = Arc::clone(&data);
+            let power_status = Arc::new(RwLock::new(PowerStatus::new()));
+            let power_status_clone = Arc::clone(&power_status);
+            // let data = Arc::new(RwLock::new(NscopeData::new()));
+            // let data_clone = Arc::clone(&data);
 
             Some(Nscope {
                 vid: dev.vendor_id(),
                 pid: dev.product_id(),
-                data,
                 command_tx,
+                power_status,
                 join_handle: Some(thread::spawn(move || {
-                    Nscope::run(hid_device, command_rx, data_clone)
+                    Nscope::run(hid_device, command_rx, power_status_clone)
                 })),
             })
         } else {
@@ -59,7 +62,11 @@ impl Nscope {
         }
     }
 
-    fn run(hid_device: HidDevice, command_rx: Receiver<Command>, data: Arc<RwLock<NscopeData>>) {
+    fn run(
+        hid_device: HidDevice,
+        command_rx: Receiver<Command>,
+        power_status: Arc<RwLock<PowerStatus>>,
+    ) {
         let mut buf = [0u8; 64];
 
         loop {
@@ -78,13 +85,23 @@ impl Nscope {
                 .read(&mut buf[..])
                 .expect("Cannot Read from device");
 
-            let response = responses::StatusResponse::new(&buf);
+            let response = StatusResponse::new(&buf);
+
+            // update the power status
             {
-                let mut data_writer = data.write().unwrap();
-                data_writer.power_state = response.power_state;
-                data_writer.power_usage = response.power_usage as f32 * 5.0 / 255.0;
+                let mut writer = power_status.write().unwrap();
+                writer.state = response.power_state;
+                writer.usage = response.power_usage as f32 * 5.0 / 255.0;
             }
         }
+    }
+
+    pub fn power_usage(&self) -> f32 {
+        self.power_status.read().unwrap().usage
+    }
+
+    pub fn power_state(&self) -> power::State {
+        self.power_status.read().unwrap().state
     }
 }
 
@@ -97,6 +114,25 @@ impl Drop for Nscope {
         // Wait for the loop to end
         if self.join_handle.is_some() {
             self.join_handle.take().unwrap().join().unwrap()
+        }
+    }
+}
+
+#[derive(Debug)]
+struct StatusResponse {
+    fw_version: u8,
+    power_state: power::State,
+    power_usage: u8,
+    request_id: u8,
+}
+
+impl StatusResponse {
+    pub(crate) fn new(buf: &[u8]) -> Self {
+        StatusResponse {
+            fw_version: buf[0] & 0x3F,
+            power_state: power::State::from((buf[0] & 0xC0) >> 6),
+            power_usage: buf[1],
+            request_id: buf[2],
         }
     }
 }
