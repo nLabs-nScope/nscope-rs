@@ -8,7 +8,7 @@
  *
  **************************************************************************************************/
 
-use nscope::{LabBench, Nscope}; //, PowerState, PowerStatus};
+use nscope::{LabBench, Nscope};
 use std::{thread, time};
 
 fn main() {
