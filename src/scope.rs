@@ -8,25 +8,27 @@
  *
  **************************************************************************************************/
 
-mod commands;
-pub mod power;
-
-use commands::Command;
-
-use self::power::PowerStatus;
-
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread::JoinHandle;
-use std::{fmt, io, thread};
+use std::{fmt, thread};
+
+pub mod analog_output;
+mod commands;
+pub mod power;
+
+use crate::scope::commands::generate_packet;
+use analog_output::AnalogOutput;
+use commands::Command;
+use power::PowerStatus;
 
 /// Object for accessing an nScope
 pub struct Nscope {
     pub vid: u16,
     pub pid: u16,
     power_status: Arc<RwLock<PowerStatus>>,
-
+    analog_output: Arc<RwLock<[AnalogOutput; 2]>>,
     command_tx: Sender<Command>,
     join_handle: Option<JoinHandle<()>>,
 }
@@ -45,18 +47,25 @@ impl Nscope {
             // If we're able to open it
             let (command_tx, command_rx) = mpsc::channel::<Command>();
 
-            let power_status = Arc::new(RwLock::new(PowerStatus::new()));
+            let power_status = Arc::new(RwLock::new(PowerStatus::default()));
             let power_status_clone = Arc::clone(&power_status);
-            // let data = Arc::new(RwLock::new(NscopeData::new()));
-            // let data_clone = Arc::clone(&data);
+
+            let analog_output = Arc::new(RwLock::new([AnalogOutput::default(); 2]));
+            let analog_output_clone = Arc::clone(&analog_output);
 
             Some(Nscope {
                 vid: dev.vendor_id(),
                 pid: dev.product_id(),
-                command_tx,
                 power_status,
+                analog_output,
+                command_tx,
                 join_handle: Some(thread::spawn(move || {
-                    Nscope::run(hid_device, command_rx, power_status_clone)
+                    Nscope::run(
+                        hid_device,
+                        command_rx,
+                        power_status_clone,
+                        analog_output_clone,
+                    )
                 })),
             })
         } else {
@@ -68,8 +77,10 @@ impl Nscope {
         hid_device: HidDevice,
         command_rx: Receiver<Command>,
         power_status: Arc<RwLock<PowerStatus>>,
+        _analog_output: Arc<RwLock<[AnalogOutput; 2]>>,
     ) {
-        let mut buf = [0u8; 64];
+        let mut incoming_usb_buffer = [0u8; 64];
+        let mut request_id: u8 = 0;
 
         loop {
             // check for an incoming command
@@ -77,37 +88,37 @@ impl Nscope {
                 if let Ok(command) = command_rx.try_recv() {
                     match command {
                         Command::Quit => break,
-                    }
+                        _ => {
+                            request_id += 1;
+                            if request_id == 0 {
+                                request_id += 1
+                            }
+                            hid_device
+                                .write(&generate_packet(request_id, command))
+                                .unwrap()
+                        }
+                    };
                 } else if hid_device.write(&commands::NULL_REQ).is_err() {
                     break;
                 }
             }
 
-            if hid_device.read(&mut buf[..]).is_err() {
+            if hid_device.read(&mut incoming_usb_buffer[..]).is_err() {
                 break;
             }
 
-            let response = StatusResponse::new(&buf);
+            let response = StatusResponse::new(&incoming_usb_buffer);
 
             // update the power status
             {
                 let mut writer = power_status.write().unwrap();
                 writer.state = response.power_state;
-                writer.usage = response.power_usage as f32 * 5.0 / 255.0;
+                writer.usage = response.power_usage as f64 * 5.0 / 255.0;
             }
         }
     }
 
-    pub fn power_status(&self) -> Result<power::PowerStatus, io::Error> {
-        if !self.is_connected() {
-            return Err(io::Error::new(
-                io::ErrorKind::ConnectionAborted,
-                "nScope connection aborted",
-            ));
-        }
-        Ok(*self.power_status.read().unwrap())
-    }
-
+    // Todo: come up with a better way of determining this
     pub fn is_connected(&self) -> bool {
         Arc::strong_count(&self.power_status) > 1
     }

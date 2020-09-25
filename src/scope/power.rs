@@ -8,15 +8,17 @@
  *
  **************************************************************************************************/
 
+use std::io;
+
 /// Storage class for the nScope power status
 #[derive(Debug, Copy, Clone)]
 pub struct PowerStatus {
     pub state: PowerState,
-    pub usage: f32,
+    pub usage: f64,
 }
 
-impl PowerStatus {
-    pub(super) fn new() -> Self {
+impl Default for PowerStatus {
+    fn default() -> Self {
         PowerStatus {
             state: PowerState::Unknown,
             usage: 0.0,
@@ -42,5 +44,17 @@ impl From<u8> for PowerState {
             3 => PowerState::Overcurrent,
             _ => PowerState::Unknown,
         }
+    }
+}
+
+impl super::Nscope {
+    pub fn power_status(&self) -> Result<PowerStatus, io::Error> {
+        if !self.is_connected() {
+            return Err(io::Error::new(
+                io::ErrorKind::ConnectionAborted,
+                "nScope connection aborted",
+            ));
+        }
+        Ok(*self.power_status.read().unwrap())
     }
 }
