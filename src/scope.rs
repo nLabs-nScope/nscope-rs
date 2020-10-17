@@ -28,7 +28,7 @@ pub struct Nscope {
     pub vid: u16,
     pub pid: u16,
     power_status: Arc<RwLock<PowerStatus>>,
-    analog_output: Arc<RwLock<[AnalogOutput; 2]>>,
+    analog_output: [AnalogOutput; 2],
     command_tx: Sender<Command>,
     join_handle: Option<JoinHandle<()>>,
 }
@@ -50,8 +50,7 @@ impl Nscope {
             let power_status = Arc::new(RwLock::new(PowerStatus::default()));
             let power_status_clone = Arc::clone(&power_status);
 
-            let analog_output = Arc::new(RwLock::new([AnalogOutput::default(); 2]));
-            let analog_output_clone = Arc::clone(&analog_output);
+            let analog_output = [AnalogOutput::default(); 2];
 
             Some(Nscope {
                 vid: dev.vendor_id(),
@@ -60,12 +59,7 @@ impl Nscope {
                 analog_output,
                 command_tx,
                 join_handle: Some(thread::spawn(move || {
-                    Nscope::run(
-                        hid_device,
-                        command_rx,
-                        power_status_clone,
-                        analog_output_clone,
-                    )
+                    Nscope::run(hid_device, command_rx, power_status_clone)
                 })),
             })
         } else {
@@ -77,7 +71,6 @@ impl Nscope {
         hid_device: HidDevice,
         command_rx: Receiver<Command>,
         power_status: Arc<RwLock<PowerStatus>>,
-        _analog_output: Arc<RwLock<[AnalogOutput; 2]>>,
     ) {
         let mut incoming_usb_buffer = [0u8; 64];
         let mut request_id: u8 = 0;

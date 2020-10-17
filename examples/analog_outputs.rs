@@ -16,7 +16,7 @@ fn main() {
     let bench = LabBench::new().unwrap();
 
     // Open all available nScope links
-    let nscopes: Vec<Nscope> = bench.list().filter_map(|nsl| nsl.open()).collect();
+    let mut nscopes: Vec<Nscope> = bench.list().filter_map(|nsl| nsl.open()).collect();
 
     nscopes[0].set_ax_on(true);
 

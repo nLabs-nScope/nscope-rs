@@ -46,12 +46,12 @@ impl Default for AnalogOutput {
 }
 
 impl Nscope {
-    pub fn set_ax_on(&self, on: bool) {
-        self.analog_output.write().unwrap()[0].is_on = on;
+    pub fn set_ax_on(&mut self, on: bool) {
+        self.analog_output[0].is_on = on;
         self.command_tx
             .send(Command::SetAnalogOutput {
                 channel: 0,
-                ax: self.analog_output.read().unwrap()[0],
+                ax: self.analog_output[0],
             })
             .unwrap();
     }
