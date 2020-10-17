@@ -8,6 +8,7 @@
  *
  **************************************************************************************************/
 
+use enclose::enclose;
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, RwLock};
@@ -48,9 +49,12 @@ impl Nscope {
             let (command_tx, command_rx) = mpsc::channel::<Command>();
 
             let power_status = Arc::new(RwLock::new(PowerStatus::default()));
-            let power_status_clone = Arc::clone(&power_status);
 
             let analog_output = [AnalogOutput::default(); 2];
+
+            let join_handle = Some(thread::spawn(enclose!((power_status) move || {
+                Nscope::run(hid_device, command_rx, power_status)
+            })));
 
             Some(Nscope {
                 vid: dev.vendor_id(),
@@ -58,9 +62,7 @@ impl Nscope {
                 power_status,
                 analog_output,
                 command_tx,
-                join_handle: Some(thread::spawn(move || {
-                    Nscope::run(hid_device, command_rx, power_status_clone)
-                })),
+                join_handle,
             })
         } else {
             None
