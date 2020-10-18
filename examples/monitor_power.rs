@@ -31,6 +31,7 @@ fn main() {
         }
 
         if nscopes.is_empty() {
+            eprintln!("Cannot find any nScopes");
             break;
         }
     }

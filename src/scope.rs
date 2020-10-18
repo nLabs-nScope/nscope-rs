@@ -19,7 +19,6 @@ pub mod analog_output;
 mod commands;
 pub mod power;
 
-use crate::scope::commands::generate_packet;
 use analog_output::AnalogOutput;
 use commands::Command;
 use power::PowerStatus;
@@ -29,7 +28,7 @@ pub struct Nscope {
     pub vid: u16,
     pub pid: u16,
     power_status: Arc<RwLock<PowerStatus>>,
-    analog_output: [AnalogOutput; 2],
+    analog_output: Arc<RwLock<[AnalogOutput; 2]>>,
     command_tx: Sender<Command>,
     join_handle: Option<JoinHandle<()>>,
 }
@@ -50,11 +49,13 @@ impl Nscope {
 
             let power_status = Arc::new(RwLock::new(PowerStatus::default()));
 
-            let analog_output = [AnalogOutput::default(); 2];
+            let analog_output = Arc::new(RwLock::new([AnalogOutput::default(); 2]));
 
-            let join_handle = Some(thread::spawn(enclose!((power_status) move || {
-                Nscope::run(hid_device, command_rx, power_status)
-            })));
+            let join_handle = Some(thread::spawn(
+                enclose!((power_status, analog_output) move || {
+                    Nscope::run(hid_device, command_rx, power_status, analog_output)
+                }),
+            ));
 
             Some(Nscope {
                 vid: dev.vendor_id(),
@@ -73,34 +74,48 @@ impl Nscope {
         hid_device: HidDevice,
         command_rx: Receiver<Command>,
         power_status: Arc<RwLock<PowerStatus>>,
+        _analog_output: Arc<RwLock<[AnalogOutput; 2]>>,
     ) {
-        let mut incoming_usb_buffer = [0u8; 64];
+        let mut active_requests: Vec<(u8, Command)> = Vec::new();
+        let mut incoming_usb_buffer: [u8; 64] = [0u8; 64];
+        let mut outgoing_usb_buffer: [u8; 65] = [0u8; 65];
         let mut request_id: u8 = 0;
 
         loop {
             // check for an incoming command
-            {
-                if let Ok(command) = command_rx.try_recv() {
-                    match command {
-                        Command::Quit => break,
-                        _ => {
-                            request_id += 1;
-                            if request_id == 0 {
-                                request_id += 1
-                            }
-                            hid_device
-                                .write(&generate_packet(request_id, command))
-                                .unwrap()
-                        }
-                    };
-                } else if hid_device.write(&commands::NULL_REQ).is_err() {
+            // Do one of the following:
+            // 1. Write a request
+            // 2. Write a null packet to request an update on the power status
+
+            if let Ok(mut command) = command_rx.try_recv() {
+                if let Command::Quit = command {
                     break;
                 }
+
+                // Process the command
+                // 1. fill the outgoing USB buffer
+                // 2. increment the request id
+                // 3. send the
+                // 3. store whatever we want to send back
+
+                command.process(&mut outgoing_usb_buffer);
+                {
+                    //TODO: make this block more concise
+                    request_id += 1;
+                    if request_id == 0 {
+                        request_id += 1
+                    }
+                    outgoing_usb_buffer[2] = request_id;
+                }
+                hid_device.write(&outgoing_usb_buffer).unwrap();
+                active_requests.push((request_id, command));
+                println!("Sent request {}", request_id);
+            } else {
+                hid_device.write(&commands::NULL_REQ).unwrap();
             }
 
-            if hid_device.read(&mut incoming_usb_buffer[..]).is_err() {
-                break;
-            }
+            // Read the incoming command and process it
+            hid_device.read(&mut incoming_usb_buffer).unwrap();
 
             let response = StatusResponse::new(&incoming_usb_buffer);
 
@@ -109,6 +124,20 @@ impl Nscope {
                 let mut writer = power_status.write().unwrap();
                 writer.state = response.power_state;
                 writer.usage = response.power_usage as f64 * 5.0 / 255.0;
+            }
+
+            // close out the request
+            if response.request_id > 0 {
+                if let Some(queue_index) = active_requests
+                    .iter()
+                    .position(|(id, _)| id == &response.request_id)
+                {
+                    println!("Finished request ID: {}", response.request_id);
+                    let (_, command) = active_requests.remove(queue_index);
+                    command.finish();
+                } else {
+                    eprintln!("Received response for request {}, but cannot find a record of that request", response.request_id);
+                }
             }
         }
     }
