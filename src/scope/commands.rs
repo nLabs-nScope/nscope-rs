@@ -9,7 +9,9 @@
  **************************************************************************************************/
 
 use super::analog_output::{update_analog_output, AnalogOutput};
+use super::NscopeState;
 use std::sync::mpsc::Sender;
+use std::sync::{Arc, RwLock};
 
 pub(super) const NULL_REQ: [u8; 2] = [0, 0xFF];
 
@@ -40,15 +42,17 @@ impl Command {
         };
     }
 
-    pub fn finish(&self) {
+    pub(super) fn finish(&self, scope_state: &Arc<RwLock<NscopeState>>) {
         match self {
             Command::Quit => {}
             Command::SetAnalogOutput {
-                channel: _,
+                channel,
                 ax: _,
                 actual,
                 sender,
             } => {
+                let mut state = scope_state.write().unwrap();
+                state.analog_output[*channel] = actual.unwrap();
                 sender.send(actual.unwrap()).unwrap();
             }
         };

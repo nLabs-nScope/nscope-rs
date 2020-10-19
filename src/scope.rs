@@ -23,12 +23,16 @@ use analog_output::AnalogOutput;
 use commands::Command;
 use power::PowerStatus;
 
+struct NscopeState {
+    power_status: PowerStatus,
+    analog_output: [AnalogOutput; 2],
+}
+
 /// Object for accessing an nScope
 pub struct Nscope {
     pub vid: u16,
     pub pid: u16,
-    power_status: Arc<RwLock<PowerStatus>>,
-    analog_output: Arc<RwLock<[AnalogOutput; 2]>>,
+    state: Arc<RwLock<NscopeState>>,
     command_tx: Sender<Command>,
     join_handle: Option<JoinHandle<()>>,
 }
@@ -47,21 +51,19 @@ impl Nscope {
             // If we're able to open it
             let (command_tx, command_rx) = mpsc::channel::<Command>();
 
-            let power_status = Arc::new(RwLock::new(PowerStatus::default()));
+            let scope_state = Arc::new(RwLock::new(NscopeState {
+                power_status: PowerStatus::default(),
+                analog_output: [AnalogOutput::default(); 2],
+            }));
 
-            let analog_output = Arc::new(RwLock::new([AnalogOutput::default(); 2]));
-
-            let join_handle = Some(thread::spawn(
-                enclose!((power_status, analog_output) move || {
-                    Nscope::run(hid_device, command_rx, power_status, analog_output)
-                }),
-            ));
+            let join_handle = Some(thread::spawn(enclose!((scope_state) move || {
+                Nscope::run(hid_device, command_rx, scope_state)
+            })));
 
             Some(Nscope {
                 vid: dev.vendor_id(),
                 pid: dev.product_id(),
-                power_status,
-                analog_output,
+                state: scope_state,
                 command_tx,
                 join_handle,
             })
@@ -73,8 +75,7 @@ impl Nscope {
     fn run(
         hid_device: HidDevice,
         command_rx: Receiver<Command>,
-        power_status: Arc<RwLock<PowerStatus>>,
-        _analog_output: Arc<RwLock<[AnalogOutput; 2]>>,
+        scope_state: Arc<RwLock<NscopeState>>,
     ) {
         let mut active_requests: Vec<(u8, Command)> = Vec::new();
         let mut incoming_usb_buffer: [u8; 64] = [0u8; 64];
@@ -119,11 +120,11 @@ impl Nscope {
 
             let response = StatusResponse::new(&incoming_usb_buffer);
 
-            // update the power status
+            // update the scope power status
             {
-                let mut writer = power_status.write().unwrap();
-                writer.state = response.power_state;
-                writer.usage = response.power_usage as f64 * 5.0 / 255.0;
+                let mut state = scope_state.write().unwrap();
+                state.power_status.state = response.power_state;
+                state.power_status.usage = response.power_usage as f64 * 5.0 / 255.0;
             }
 
             // close out the request
@@ -134,7 +135,7 @@ impl Nscope {
                 {
                     println!("Finished request ID: {}", response.request_id);
                     let (_, command) = active_requests.remove(queue_index);
-                    command.finish();
+                    command.finish(&scope_state);
                 } else {
                     eprintln!("Received response for request {}, but cannot find a record of that request", response.request_id);
                 }
@@ -144,7 +145,7 @@ impl Nscope {
 
     // Todo: come up with a better way of determining this
     pub fn is_connected(&self) -> bool {
-        Arc::strong_count(&self.power_status) > 1
+        Arc::strong_count(&self.state) > 1
     }
 }
 

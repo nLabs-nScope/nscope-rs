@@ -48,12 +48,13 @@ impl Default for AnalogOutput {
 
 impl Nscope {
     pub fn get_ax(&self) -> AnalogOutput {
-        self.analog_output.read().unwrap()[0]
+        let state = self.state.read().unwrap();
+        state.analog_output[0]
     }
 
     pub fn set_ax_on(&self, on: bool) -> AnalogOutput {
         // Get the current state of the analog output
-        let mut requested_ax = self.analog_output.read().unwrap()[0];
+        let mut requested_ax = self.get_ax();
         requested_ax.is_on = on;
 
         // Create a method for the backend to communicate back to us what we want
@@ -70,10 +71,7 @@ impl Nscope {
             .unwrap();
 
         // Wait for the backend to receive a response and return the result
-        let actual_ax = rx.recv().unwrap();
-        let mut writer = self.analog_output.write().unwrap();
-        writer[0] = actual_ax;
-        actual_ax
+        rx.recv().unwrap()
     }
 }
 

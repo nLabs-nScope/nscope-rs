@@ -55,6 +55,7 @@ impl super::Nscope {
                 "nScope connection aborted",
             ));
         }
-        Ok(*self.power_status.read().unwrap())
+        let state = self.state.read().unwrap();
+        Ok(state.power_status)
     }
 }
