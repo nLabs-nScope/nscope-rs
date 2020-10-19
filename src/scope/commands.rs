@@ -44,7 +44,7 @@ impl Command {
         match self {
             Command::Quit => {}
             Command::SetAnalogOutput {
-                channel,
+                channel: _,
                 ax: _,
                 actual,
                 sender,
