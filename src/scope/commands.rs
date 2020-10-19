@@ -21,7 +21,6 @@ pub enum Command {
     SetAnalogOutput {
         channel: usize,
         ax: AnalogOutput,
-        actual: Option<AnalogOutput>,
         sender: Sender<AnalogOutput>,
     },
 }
@@ -34,10 +33,9 @@ impl Command {
             Command::SetAnalogOutput {
                 channel,
                 ax,
-                actual,
                 sender: _,
             } => {
-                *actual = update_analog_output(usb_buf, *channel, *ax);
+                update_analog_output(usb_buf, *channel, ax);
             }
         };
     }
@@ -47,13 +45,12 @@ impl Command {
             Command::Quit => {}
             Command::SetAnalogOutput {
                 channel,
-                ax: _,
-                actual,
+                ax,
                 sender,
             } => {
                 let mut state = scope_state.write().unwrap();
-                state.analog_output[*channel] = actual.unwrap();
-                sender.send(actual.unwrap()).unwrap();
+                state.analog_output[*channel] = *ax;
+                sender.send(*ax).unwrap();
             }
         };
     }

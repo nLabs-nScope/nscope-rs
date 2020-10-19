@@ -65,7 +65,6 @@ impl Nscope {
             .send(Command::SetAnalogOutput {
                 channel: 0,
                 ax: requested_ax,
-                actual: None,
                 sender: tx,
             })
             .unwrap();
@@ -75,11 +74,7 @@ impl Nscope {
     }
 }
 
-pub(crate) fn update_analog_output(
-    usb_buf: &mut [u8; 65],
-    _: usize,
-    ax: AnalogOutput,
-) -> Option<AnalogOutput> {
+pub(crate) fn update_analog_output(usb_buf: &mut [u8; 65], _: usize, ax: &mut AnalogOutput) {
     usb_buf[1] = 0x02;
 
     if ax.is_on {
@@ -119,5 +114,4 @@ pub(crate) fn update_analog_output(
     } else {
         usb_buf[3] = 0xFF;
     }
-    Some(ax)
 }
