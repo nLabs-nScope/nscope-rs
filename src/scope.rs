@@ -44,8 +44,8 @@ impl fmt::Debug for Nscope {
     }
 }
 
-/// Create a new Nscope object
 impl Nscope {
+    /// Create a new Nscope object
     pub(crate) fn new(dev: &DeviceInfo, hid_api: &HidApi) -> Option<Self> {
         // Open the hid_device
         if let Ok(hid_device) = dev.open_device(hid_api) {
