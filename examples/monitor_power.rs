@@ -12,6 +12,8 @@ use nscope::{LabBench, Nscope};
 use std::{thread, time};
 
 fn main() {
+    env_logger::init();
+
     // Create a LabBench
     let bench = LabBench::new().unwrap();
 

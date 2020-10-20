@@ -11,6 +11,8 @@
 use nscope::LabBench;
 
 fn main() {
+    env_logger::init();
+
     // Create a LabBench
     let bench = LabBench::new().unwrap();
 

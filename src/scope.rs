@@ -10,6 +10,7 @@
 
 use enclose::enclose;
 use hidapi::{DeviceInfo, HidApi, HidDevice};
+use log::trace;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread::JoinHandle;
@@ -110,7 +111,7 @@ impl Nscope {
                 }
                 hid_device.write(&outgoing_usb_buffer).unwrap();
                 active_requests.push((request_id, command));
-                println!("Sent request {}", request_id);
+                trace!("Sent request {}", request_id);
             } else {
                 hid_device.write(&commands::NULL_REQ).unwrap();
             }
@@ -133,7 +134,7 @@ impl Nscope {
                     .iter()
                     .position(|(id, _)| id == &response.request_id)
                 {
-                    println!("Finished request ID: {}", response.request_id);
+                    trace!("Finished request ID: {}", response.request_id);
                     let (_, command) = active_requests.remove(queue_index);
                     command.finish(&scope_state);
                 } else {

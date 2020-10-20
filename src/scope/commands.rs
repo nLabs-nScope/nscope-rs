@@ -10,6 +10,7 @@
 
 use super::analog_output::{update_analog_output, AnalogOutput};
 use super::NscopeState;
+use log::debug;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, RwLock};
 
@@ -27,7 +28,7 @@ pub enum Command {
 
 impl Command {
     pub fn process(&mut self, usb_buf: &mut [u8; 65]) {
-        println!("Processed command: {:?}", self);
+        debug!("Processed command: {:?}", self);
         match self {
             Command::Quit => {}
             Command::SetAnalogOutput { channel, ax, .. } => {
