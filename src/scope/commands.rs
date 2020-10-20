@@ -30,17 +30,13 @@ impl Command {
         println!("Processed command: {:?}", self);
         match self {
             Command::Quit => {}
-            Command::SetAnalogOutput {
-                channel,
-                ax,
-                sender: _,
-            } => {
-                update_analog_output(usb_buf, *channel, ax);
+            Command::SetAnalogOutput { channel, ax, .. } => {
+                update_analog_output(usb_buf, channel, ax);
             }
         };
     }
 
-    pub(super) fn finish(&self, scope_state: &Arc<RwLock<NscopeState>>) {
+    pub(super) fn finish(self, scope_state: &Arc<RwLock<NscopeState>>) {
         match self {
             Command::Quit => {}
             Command::SetAnalogOutput {
@@ -49,8 +45,8 @@ impl Command {
                 sender,
             } => {
                 let mut state = scope_state.write().unwrap();
-                state.analog_output[*channel] = *ax;
-                sender.send(*ax).unwrap();
+                state.analog_output[channel] = ax;
+                sender.send(ax).unwrap();
             }
         };
     }

@@ -47,14 +47,14 @@ impl Default for AnalogOutput {
 }
 
 impl Nscope {
-    pub fn get_ax(&self) -> AnalogOutput {
+    pub fn get_ax(&self, channel: usize) -> AnalogOutput {
         let state = self.state.read().unwrap();
-        state.analog_output[0]
+        state.analog_output[channel]
     }
 
-    pub fn set_ax_on(&self, on: bool) -> AnalogOutput {
+    pub fn set_ax_on(&self, channel: usize, on: bool) -> AnalogOutput {
         // Get the current state of the analog output
-        let mut requested_ax = self.get_ax();
+        let mut requested_ax = self.get_ax(channel);
         requested_ax.is_on = on;
 
         // Create a method for the backend to communicate back to us what we want
@@ -63,7 +63,7 @@ impl Nscope {
         // Send the command to the backend
         self.command_tx
             .send(Command::SetAnalogOutput {
-                channel: 0,
+                channel,
                 ax: requested_ax,
                 sender: tx,
             })
@@ -74,23 +74,25 @@ impl Nscope {
     }
 }
 
-pub(crate) fn update_analog_output(usb_buf: &mut [u8; 65], _: usize, ax: &mut AnalogOutput) {
+pub(crate) fn update_analog_output(usb_buf: &mut [u8; 65], channel: &usize, ax: &mut AnalogOutput) {
     usb_buf[1] = 0x02;
 
+    let i_ch = 3 + 10 * channel;
+
     if ax.is_on {
-        usb_buf[3] = ax.wave_type as u8;
-        usb_buf[3] |= 0x80;
+        usb_buf[i_ch] = ax.wave_type as u8;
+        usb_buf[i_ch] |= 0x80;
 
         let scaled_frequency = ax.frequency * 2.0_f64.powi(28) / 4000000.0;
         let freq_register: u32 = scaled_frequency as u32;
 
-        usb_buf[4] = (freq_register & 0x00FF) as u8;
-        usb_buf[5] = ((freq_register & 0x3F00) >> 8) as u8;
-        usb_buf[6] = (freq_register >> 14 & 0x00FF) as u8;
-        usb_buf[7] = ((freq_register >> 14 & 0x3F00) >> 8) as u8;
+        usb_buf[i_ch + 1] = (freq_register & 0x00FF) as u8;
+        usb_buf[i_ch + 2] = ((freq_register & 0x3F00) >> 8) as u8;
+        usb_buf[i_ch + 3] = (freq_register >> 14 & 0x00FF) as u8;
+        usb_buf[i_ch + 4] = ((freq_register >> 14 & 0x3F00) >> 8) as u8;
 
         if ax.amplitude < 0.0 {
-            usb_buf[3] |= 0x2;
+            usb_buf[i_ch] |= 0x2;
         }
         let rf = 49900.0;
         let vin = 0.6;
@@ -109,9 +111,9 @@ pub(crate) fn update_analog_output(usb_buf: &mut [u8; 65], _: usize, ax: &mut An
             * 255.0
             / 3.05) as u8;
 
-        usb_buf[8] = gain;
-        usb_buf[9] = offset;
+        usb_buf[i_ch + 5] = gain;
+        usb_buf[i_ch + 6] = offset;
     } else {
-        usb_buf[3] = 0xFF;
+        usb_buf[i_ch] = 0xFF;
     }
 }
