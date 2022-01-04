@@ -11,6 +11,7 @@
 use enclose::enclose;
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 use log::trace;
+use std::error::Error;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread::JoinHandle;
@@ -25,6 +26,7 @@ use commands::Command;
 use power::PowerStatus;
 
 struct NscopeState {
+    fw_version: Option<u8>,
     power_status: PowerStatus,
     analog_output: [AnalogOutput; 2],
 }
@@ -40,37 +42,36 @@ pub struct Nscope {
 
 impl fmt::Debug for Nscope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "VID: 0x{:04X}, PID: 0x{:04X}", self.vid, self.pid,)
+        write!(f, "VID: 0x{:04X}, PID: 0x{:04X}", self.vid, self.pid, )
     }
 }
 
 impl Nscope {
     /// Create a new Nscope object
-    pub(crate) fn new(dev: &DeviceInfo, hid_api: &HidApi) -> Option<Self> {
+    pub(crate) fn new(dev: &DeviceInfo, hid_api: &HidApi) -> Result<Self, Box<dyn Error>> {
         // Open the hid_device
-        if let Ok(hid_device) = dev.open_device(hid_api) {
-            // If we're able to open it
-            let (command_tx, command_rx) = mpsc::channel::<Command>();
+        let hid_device = dev.open_device(hid_api)?;
 
-            let scope_state = Arc::new(RwLock::new(NscopeState {
-                power_status: PowerStatus::default(),
-                analog_output: [AnalogOutput::default(); 2],
-            }));
+        // Create communication channels to scope
+        let (command_tx, command_rx) = mpsc::channel::<Command>();
 
-            let join_handle = Some(thread::spawn(enclose!((scope_state) move || {
-                Nscope::run(hid_device, command_rx, scope_state)
-            })));
+        let scope_state = Arc::new(RwLock::new(NscopeState {
+            fw_version: None,
+            power_status: PowerStatus::default(),
+            analog_output: [AnalogOutput::default(); 2],
+        }));
 
-            Some(Nscope {
-                vid: dev.vendor_id(),
-                pid: dev.product_id(),
-                state: scope_state,
-                command_tx,
-                join_handle,
-            })
-        } else {
-            None
-        }
+        let join_handle = Some(thread::spawn(enclose!((scope_state) move || {
+            Nscope::run(hid_device, command_rx, scope_state)
+        })));
+
+        Ok(Nscope {
+            vid: dev.vendor_id(),
+            pid: dev.product_id(),
+            state: scope_state,
+            command_tx,
+            join_handle,
+        })
     }
 
     fn run(
@@ -115,7 +116,7 @@ impl Nscope {
             } else {
                 hid_device.write(&commands::NULL_REQ).unwrap();
             }
-
+            // DO NOT USE UNWRAP
             // Read the incoming command and process it
             hid_device.read(&mut incoming_usb_buffer).unwrap();
 
@@ -124,6 +125,7 @@ impl Nscope {
             // update the scope power status
             {
                 let mut state = scope_state.write().unwrap();
+                state.fw_version = Some(response.fw_version);
                 state.power_status.state = response.power_state;
                 state.power_status.usage = response.power_usage as f64 * 5.0 / 255.0;
             }
@@ -147,6 +149,11 @@ impl Nscope {
     // Todo: come up with a better way of determining this
     pub fn is_connected(&self) -> bool {
         Arc::strong_count(&self.state) > 1
+    }
+
+    pub fn fw_version(&self) -> Result<u8, Box<dyn Error>> {
+        let state = &self.state.read().unwrap();
+        state.fw_version.ok_or_else(|| "Cannot read FW version".into())
     }
 }
 

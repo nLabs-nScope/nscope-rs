@@ -10,31 +10,34 @@
 
 use nscope::{LabBench, Nscope};
 use std::{thread, time};
+use std::error::Error;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     // Create a LabBench
-    let bench = LabBench::new().unwrap();
+    let bench = LabBench::new()?;
 
     // Open all available nScope links
-    let mut nscopes: Vec<Nscope> = bench.list().filter_map(|nsl| nsl.open()).collect();
+    let mut nscopes: Vec<Nscope> = bench.open_all_available();
 
     loop {
-        thread::sleep(time::Duration::from_millis(50));
+        thread::sleep(time::Duration::from_millis(10));
 
         nscopes.retain(|n| n.is_connected());
 
         for n in nscopes.iter() {
             match n.power_status() {
-                Ok(status) => println!("{:?} {}", status.state, status.usage),
-                Err(error) => println!("{}", error),
+                Ok(status) => {
+                    let state = format!("{:?}", status.state);
+                    println!("{:>15}: {:.3} Watts", state, status.usage)
+                },
+                Err(error) => eprintln!("{}", error),
             }
         }
 
         if nscopes.is_empty() {
-            eprintln!("Cannot find any nScopes");
-            break;
+            return Err("Cannot find any nScopes")?
         }
     }
 }

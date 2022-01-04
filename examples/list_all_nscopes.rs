@@ -9,12 +9,13 @@
  **************************************************************************************************/
 
 use nscope::LabBench;
+use std::error::Error;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     // Create a LabBench
-    let bench = LabBench::new().unwrap();
+    let bench = LabBench::new()?;
 
     // Print the bench to show a list of connected nScopes
     println!("{:?}", bench);
@@ -23,4 +24,5 @@ fn main() {
     for nsl in bench.list() {
         println!("{:?}", nsl)
     }
+    Ok(())
 }

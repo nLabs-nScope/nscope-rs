@@ -11,7 +11,8 @@
 use crate::scope::Nscope;
 use hidapi::DeviceInfo;
 use hidapi::HidApi;
-use std::fmt;
+use std::{fmt, io};
+use std::error::Error;
 use std::sync::{Arc, RwLock};
 
 pub struct LabBench {
@@ -26,14 +27,12 @@ pub struct NscopeLink {
 }
 
 impl LabBench {
-    pub fn new() -> Option<Self> {
-        match HidApi::new() {
-            Ok(hid_api) => Some(LabBench {
-                hid_devices: hid_api.device_list().cloned().collect(),
-                hid_api: Arc::new(RwLock::new(hid_api)),
-            }),
-            Err(_) => None,
-        }
+    pub fn new() -> Result<LabBench, Box<dyn Error>> {
+        let hid_api = HidApi::new()?;
+        Ok(LabBench {
+            hid_devices: hid_api.device_list().cloned().collect(),
+            hid_api: Arc::new(RwLock::new(hid_api)),
+        })
     }
 
     pub fn refresh(&mut self) {
@@ -43,17 +42,37 @@ impl LabBench {
     }
 
     /// Returns iterator containing information about attached nScopes
-    pub fn list(&self) -> impl Iterator<Item = NscopeLink> + '_ {
+    pub fn list(&self) -> impl Iterator<Item=NscopeLink> + '_ {
         self.hid_devices
             .iter()
             .filter_map(move |d| NscopeLink::new(d.clone(), Arc::clone(&self.hid_api)))
     }
+
+    pub fn open_all_available(self) -> Vec<Nscope> {
+        self.list().filter_map(|nsl| nsl.open().ok()).collect()
+    }
+
+    pub fn open_first_available(self) -> Result<Nscope, io::Error> {
+
+        // Default error is that we found zero nScopes
+        let mut err = io::Error::new(io::ErrorKind::NotFound, "Cannot find any nScopes");
+
+        for nsl in self.list() {
+            if let Ok(nscope) = nsl.open() {
+                // return the first open nScope
+                return Ok(nscope);
+            }
+            // If we've gotten here, then the error is that we cannot open an nScope
+            err = io::Error::new(io::ErrorKind::ConnectionRefused, "Cannot connect to any nScopes");
+        }
+        Err(err)
+    }
 }
 
 impl NscopeLink {
-    fn new(info: DeviceInfo, hid_api: Arc<RwLock<HidApi>>) -> Option<NscopeLink> {
+    fn new(info: DeviceInfo, hid_api: Arc<RwLock<HidApi>>) -> Option<Self> {
         if info.vendor_id() == 0x04D8 && info.product_id() == 0xF3F6 {
-            let api = hid_api.read().unwrap();
+            let api = hid_api.read().ok()?;
             let available = info.open_device(&api).is_ok();
             Some(NscopeLink {
                 available,
@@ -65,7 +84,7 @@ impl NscopeLink {
         }
     }
 
-    pub fn open(&self) -> Option<Nscope> {
+    pub fn open(&self) -> Result<Nscope, Box<dyn Error>> {
         let api = self.hid_api.read().unwrap();
         Nscope::new(&self.info, &api)
     }
