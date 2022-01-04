@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         if nscopes.is_empty() {
-            return Err("Cannot find any nScopes")?
+            return Err("Cannot find any nScopes".into())
         }
     }
 }
