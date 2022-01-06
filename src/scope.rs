@@ -17,18 +17,21 @@ use std::sync::{mpsc, Arc, RwLock};
 use std::thread::JoinHandle;
 use std::{fmt, thread};
 
-pub mod analog_output;
 mod commands;
+pub mod analog_output;
+pub mod pulse_output;
 pub mod power;
 
 use analog_output::AnalogOutput;
 use commands::Command;
 use power::PowerStatus;
+use crate::scope::pulse_output::PulseOutput;
 
 struct NscopeState {
     fw_version: Option<u8>,
     power_status: PowerStatus,
     analog_output: [AnalogOutput; 2],
+    pulse_output: [PulseOutput; 2],
 }
 
 /// Object for accessing an nScope
@@ -59,6 +62,7 @@ impl Nscope {
             fw_version: None,
             power_status: PowerStatus::default(),
             analog_output: [AnalogOutput::default(); 2],
+            pulse_output: [PulseOutput::default(); 2],
         }));
 
         let join_handle = Some(thread::spawn(enclose!((scope_state) move || {
@@ -101,7 +105,10 @@ impl Nscope {
                 // 3. send the
                 // 3. store whatever we want to send back
 
-                command.process(&mut outgoing_usb_buffer);
+                let result = command.fill_tx_buffer(&mut outgoing_usb_buffer);
+                if result.is_err() {
+                    eprintln!("{:?}", result);
+                }
                 {
                     //TODO: make this block more concise
                     request_id += 1;

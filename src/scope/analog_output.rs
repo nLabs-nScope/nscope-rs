@@ -8,6 +8,7 @@
  *
  **************************************************************************************************/
 
+use std::error::Error;
 use super::commands::Command;
 use super::Nscope;
 use std::sync::mpsc;
@@ -53,7 +54,7 @@ impl Nscope {
         state.analog_output[channel]
     }
 
-    pub fn set_ax(&self, channel: usize, ax: AnalogOutput) -> Receiver<AnalogOutput> {
+    fn set_ax(&self, channel: usize, ax: AnalogOutput) -> Receiver<AnalogOutput> {
         // Create a method for the backend to communicate back to us what we want
         let (tx, rx) = mpsc::channel::<AnalogOutput>();
 
@@ -125,7 +126,7 @@ impl Nscope {
     }
 }
 
-pub(crate) fn update_analog_output(usb_buf: &mut [u8; 65], channel: &usize, ax: &mut AnalogOutput) {
+pub(crate) fn update_analog_output(usb_buf: &mut [u8; 65], channel: &usize, ax: &mut AnalogOutput) -> Result<(), Box<dyn Error>> {
     usb_buf[1] = 0x02;
 
     let i_ch = 3 + 10 * channel;
@@ -167,4 +168,5 @@ pub(crate) fn update_analog_output(usb_buf: &mut [u8; 65], channel: &usize, ax: 
     } else {
         usb_buf[i_ch] = 0xFF;
     }
+    Ok(())
 }
