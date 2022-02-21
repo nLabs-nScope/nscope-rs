@@ -43,15 +43,12 @@ impl PulsePreScale {
 }
 
 
-
 /// Interface to a pulse output
 #[derive(Debug, Copy, Clone)]
 pub struct PulseOutput {
     pub is_on: bool,
     pub frequency: f64,
     pub duty: f64,
-    pub period: Duration,
-    pub pulse_width: Duration,
 }
 
 impl Default for PulseOutput {
@@ -60,9 +57,19 @@ impl Default for PulseOutput {
             is_on: false,
             frequency: 1.0,
             duty: 0.5,
-            period: Duration::from_millis(1000),
-            pulse_width: Duration::from_millis(500),
         }
+    }
+}
+
+impl PulseOutput {
+    fn period(&self) -> Duration {
+        let period = 1.0 / self.frequency;
+        Duration::from_secs_f64(period)
+    }
+
+    fn pulse_width(&self) -> Duration {
+        let period = self.period();
+        period.mul_f64(self.duty)
     }
 }
 
@@ -98,14 +105,36 @@ impl Nscope {
         // Wait for the backend to receive a response and return the result
         rx.recv().unwrap()
     }
+
+    pub fn set_px_frequency_hz(&self, channel: usize, freq: f64) -> PulseOutput {
+        // Get the current state of the analog output
+        let mut requested_px = self.get_px(channel);
+        requested_px.frequency = freq;
+
+        let rx = self.set_px(channel, requested_px);
+
+        // Wait for the backend to receive a response and return the result
+        rx.recv().unwrap()
+    }
+
+    pub fn set_px_duty(&self, channel: usize, duty: f64) -> PulseOutput {
+        // Get the current state of the analog output
+        let mut requested_px = self.get_px(channel);
+        requested_px.duty = duty;
+
+        let rx = self.set_px(channel, requested_px);
+
+        // Wait for the backend to receive a response and return the result
+        rx.recv().unwrap()
+    }
 }
 
 
 fn get_registers(pulse_output: &PulseOutput) -> Result<(u8, u32, u32), Box<dyn Error>> {
 
     // The period and duty registers are an integeter number of 16 MHz clock cycles
-    let period = (pulse_output.period.as_nanos() * 16 / 1000) as u64;
-    let duty = (pulse_output.pulse_width.as_nanos() * 16 / 1000) as u64;
+    let period = (pulse_output.period().as_nanos() * 16 / 1000) as u64;
+    let duty = (pulse_output.pulse_width().as_nanos() * 16 / 1000) as u64;
 
     let prescale = if period < 4u64 {
         return Err("Desired pulse length is too short".into());
@@ -133,14 +162,10 @@ pub(crate) fn update_pulse_output(usb_buf: &mut [u8; 65], channel: &usize, px: &
     let i_ch = 3 + 10 * channel;
     let (prescale, period, duty) = get_registers(px)?;
 
-
     if px.is_on {
         usb_buf[i_ch] = 0x80 | prescale;
-
-        usb_buf[i_ch+1..=i_ch+4].copy_from_slice(&period.to_le_bytes());
-        usb_buf[i_ch+5..=i_ch+8].copy_from_slice(&duty.to_le_bytes());
-        // usb_buf[i_ch+1] = period.to_le_bytes();
-        // usb_buf[i_ch+5..=i_ch+8] = duty.to_le_bytes();
+        usb_buf[i_ch + 1..=i_ch + 4].copy_from_slice(&period.to_le_bytes());
+        usb_buf[i_ch + 5..=i_ch + 8].copy_from_slice(&duty.to_le_bytes());
     } else {
         usb_buf[i_ch] = 0xFF;
     }
