@@ -8,7 +8,6 @@
  *
  **************************************************************************************************/
 
-use enclose::enclose;
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 use log::trace;
 use std::error::Error;
@@ -25,7 +24,7 @@ pub mod power;
 use analog_output::AnalogOutput;
 use commands::Command;
 use power::PowerStatus;
-use crate::scope::pulse_output::PulseOutput;
+use pulse_output::PulseOutput;
 
 struct NscopeState {
     fw_version: Option<u8>,
@@ -65,17 +64,25 @@ impl Nscope {
             pulse_output: [PulseOutput::default(); 2],
         }));
 
-        let join_handle = Some(thread::spawn(enclose!((scope_state) move || {
-            Nscope::run(hid_device, command_rx, scope_state)
-        })));
+        let remote_state = scope_state.clone();
+        let join_handle = Some(thread::spawn(move || {
+            Nscope::run(hid_device, command_rx, remote_state);
+        }));
 
-        Ok(Nscope {
+        let scope = Nscope {
             vid: dev.vendor_id(),
             pid: dev.product_id(),
             state: scope_state,
             command_tx,
             join_handle,
-        })
+        };
+
+        for ch in 0..2 {
+            scope.set_px(ch, PulseOutput::default()).recv()?;
+            scope.set_ax(ch, AnalogOutput::default()).recv()?;
+        }
+
+        Ok(scope)
     }
 
     fn run(
@@ -88,7 +95,7 @@ impl Nscope {
         let mut outgoing_usb_buffer: [u8; 65] = [0u8; 65];
         let mut request_id: u8 = 0;
 
-        loop {
+        'communication: loop {
             // check for an incoming command
             // Do one of the following:
             // 1. Write a request
@@ -117,15 +124,22 @@ impl Nscope {
                     }
                     outgoing_usb_buffer[2] = request_id;
                 }
-                hid_device.write(&outgoing_usb_buffer).unwrap();
+                if hid_device.write(&outgoing_usb_buffer).is_err() {
+                    eprintln!("USB write error, ending nScope connection");
+                    break 'communication;
+                }
                 active_requests.push((request_id, command));
                 trace!("Sent request {}", request_id);
-            } else {
-                hid_device.write(&commands::NULL_REQ).unwrap();
+            } else if hid_device.write(&commands::NULL_REQ).is_err() {
+                eprintln!("USB write error, ending nScope connection");
+                break 'communication;
             }
-            // DO NOT USE UNWRAP
+
             // Read the incoming command and process it
-            hid_device.read(&mut incoming_usb_buffer).unwrap();
+            if hid_device.read(&mut incoming_usb_buffer).is_err() {
+                eprintln!("USB read error, ending nScope connection");
+                break 'communication;
+            }
 
             let response = StatusResponse::new(&incoming_usb_buffer);
 
@@ -157,6 +171,8 @@ impl Nscope {
     pub fn is_connected(&self) -> bool {
         Arc::strong_count(&self.state) > 1
     }
+
+
 
     pub fn fw_version(&self) -> Result<u8, Box<dyn Error>> {
         let state = &self.state.read().unwrap();

@@ -79,7 +79,7 @@ impl Nscope {
         state.pulse_output[channel]
     }
 
-    fn set_px(&self, channel: usize, px: PulseOutput) -> Receiver<PulseOutput> {
+    pub(crate) fn set_px(&self, channel: usize, px: PulseOutput) -> Receiver<PulseOutput> {
         // Create a method for the backend to communicate back to us what we want
         let (tx, rx) = mpsc::channel::<PulseOutput>();
 

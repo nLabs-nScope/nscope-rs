@@ -17,4 +17,6 @@ pub use lab_bench::NscopeLink;
 pub use scope::power::PowerState;
 pub use scope::power::PowerStatus;
 pub use scope::Nscope;
+pub use scope::pulse_output::*;
+pub use scope::analog_output::*;
 pub use ver::ver;

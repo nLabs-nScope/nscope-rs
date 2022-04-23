@@ -9,6 +9,7 @@
  **************************************************************************************************/
 
 use std::error::Error;
+use std::str::FromStr;
 use super::commands::Command;
 use super::Nscope;
 use std::sync::mpsc;
@@ -20,10 +21,32 @@ pub enum AnalogWaveType {
     Triangle = 1,
 }
 
+impl FromStr for AnalogWaveType {
+    type Err = ();
+    fn from_str(input: &str) -> Result<AnalogWaveType, Self::Err> {
+        match input {
+            "Sine" => Ok(AnalogWaveType::Sine),
+            "Triangle" => Ok(AnalogWaveType::Triangle),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AnalogSignalPolarity {
     Unipolar,
     Bipolar,
+}
+
+impl FromStr for AnalogSignalPolarity {
+    type Err = ();
+    fn from_str(input: &str) -> Result<AnalogSignalPolarity, Self::Err> {
+        match input {
+            "Unipolar" => Ok(AnalogSignalPolarity::Unipolar),
+            "Bipolar" => Ok(AnalogSignalPolarity::Bipolar),
+            _ => Err(()),
+        }
+    }
 }
 
 /// Interface to an analog output
@@ -54,7 +77,7 @@ impl Nscope {
         state.analog_output[channel]
     }
 
-    fn set_ax(&self, channel: usize, ax: AnalogOutput) -> Receiver<AnalogOutput> {
+    pub(crate) fn set_ax(&self, channel: usize, ax: AnalogOutput) -> Receiver<AnalogOutput> {
         // Create a method for the backend to communicate back to us what we want
         let (tx, rx) = mpsc::channel::<AnalogOutput>();
 

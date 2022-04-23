@@ -48,11 +48,11 @@ impl LabBench {
             .filter_map(move |d| NscopeLink::new(d.clone(), Arc::clone(&self.hid_api)))
     }
 
-    pub fn open_all_available(self) -> Vec<Nscope> {
+    pub fn open_all_available(&self) -> Vec<Nscope> {
         self.list().filter_map(|nsl| nsl.open().ok()).collect()
     }
 
-    pub fn open_first_available(self) -> Result<Nscope, io::Error> {
+    pub fn open_first_available(&self) -> Result<Nscope, io::Error> {
 
         // Default error is that we found zero nScopes
         let mut err = io::Error::new(io::ErrorKind::NotFound, "Cannot find any nScopes");
