@@ -9,6 +9,7 @@
  **************************************************************************************************/
 
 use std::io;
+use super::Nscope;
 
 /// Storage class for the nScope power status
 #[derive(Debug, Copy, Clone)]
@@ -47,7 +48,7 @@ impl From<u8> for PowerState {
     }
 }
 
-impl super::Nscope {
+impl Nscope {
     pub fn power_status(&self) -> Result<PowerStatus, io::Error> {
         if !self.is_connected() {
             return Err(io::Error::new(

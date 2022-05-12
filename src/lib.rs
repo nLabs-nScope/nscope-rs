@@ -14,9 +14,10 @@ mod ver;
 
 pub use lab_bench::LabBench;
 pub use lab_bench::NscopeLink;
-pub use scope::power::PowerState;
-pub use scope::power::PowerStatus;
 pub use scope::Nscope;
+pub use scope::power::*;
 pub use scope::pulse_output::*;
 pub use scope::analog_output::*;
+pub use scope::analog_input::*;
+pub use scope::trigger::*;
 pub use ver::ver;

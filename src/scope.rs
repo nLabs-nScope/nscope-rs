@@ -12,25 +12,33 @@ use hidapi::{DeviceInfo, HidApi, HidDevice};
 use log::trace;
 use std::error::Error;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, RwLock};
+use std::sync::{Arc, mpsc, RwLock};
 use std::thread::JoinHandle;
 use std::{fmt, thread};
 
 mod commands;
+pub mod analog_input;
 pub mod analog_output;
 pub mod pulse_output;
+pub mod trigger;
 pub mod power;
+pub mod data_requests;
 
 use analog_output::AnalogOutput;
 use commands::Command;
 use power::PowerStatus;
 use pulse_output::PulseOutput;
+use analog_input::AnalogInput;
+use trigger::Trigger;
+
 
 struct NscopeState {
     fw_version: Option<u8>,
     power_status: PowerStatus,
     analog_output: [AnalogOutput; 2],
     pulse_output: [PulseOutput; 2],
+    analog_inputs: [AnalogInput; 4],
+    trigger: Trigger,
 }
 
 /// Object for accessing an nScope
@@ -62,6 +70,8 @@ impl Nscope {
             power_status: PowerStatus::default(),
             analog_output: [AnalogOutput::default(); 2],
             pulse_output: [PulseOutput::default(); 2],
+            analog_inputs: [AnalogInput::default(); 4],
+            trigger: Trigger::default(),
         }));
 
         let remote_state = scope_state.clone();
@@ -157,9 +167,13 @@ impl Nscope {
                     .iter()
                     .position(|(id, _)| id == &response.request_id)
                 {
-                    trace!("Finished request ID: {}", response.request_id);
                     let (_, command) = active_requests.remove(queue_index);
-                    command.finish(&scope_state);
+                    if let Some(command) = command.finish(&incoming_usb_buffer, &scope_state) {
+                        active_requests.push((response.request_id, command));
+                        trace!("Received request ID: {}", response.request_id);
+                    } else {
+                        trace!("Finished request ID: {}", response.request_id);
+                    }
                 } else {
                     eprintln!("Received response for request {}, but cannot find a record of that request", response.request_id);
                 }

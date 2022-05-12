@@ -9,11 +9,12 @@
  **************************************************************************************************/
 
 use std::error::Error;
-use std::sync::mpsc;
-use std::sync::mpsc::Receiver;
+use std::sync::{Arc, mpsc, RwLock};
+use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 use crate::Nscope;
-use crate::scope::commands::Command;
+use crate::scope::commands::{Command, ScopeCommand};
+use crate::scope::NscopeState;
 
 #[derive(Debug, Copy, Clone)]
 pub enum PulsePreScale {
@@ -84,11 +85,11 @@ impl Nscope {
         let (tx, rx) = mpsc::channel::<PulseOutput>();
 
         // Create the command to set an analog output
-        let command = Command::SetPulseOutput {
+        let command = Command::SetPulseOutput(PxRequest {
             channel,
             px,
             sender: tx,
-        };
+        });
 
         // Send the command to the backend
         self.command_tx.send(command).unwrap();
@@ -156,19 +157,35 @@ fn get_registers(pulse_output: &PulseOutput) -> Result<(u8, u32, u32), Box<dyn E
     Ok((prescale.register(), period_register, duty_register))
 }
 
-pub(crate) fn update_pulse_output(usb_buf: &mut [u8; 65], channel: &usize, px: &mut PulseOutput) -> Result<(), Box<dyn Error>> {
-    usb_buf[1] = 0x01;
+#[derive(Debug)]
+pub(super) struct PxRequest {
+    channel: usize,
+    px: PulseOutput,
+    sender: Sender<PulseOutput>,
+}
 
-    let i_ch = 3 + 10 * channel;
-    let (prescale, period, duty) = get_registers(px)?;
+impl ScopeCommand for PxRequest {
+    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
+        usb_buf[1] = 0x01;
 
-    if px.is_on {
-        usb_buf[i_ch] = 0x80 | prescale;
-        usb_buf[i_ch + 1..=i_ch + 4].copy_from_slice(&period.to_le_bytes());
-        usb_buf[i_ch + 5..=i_ch + 8].copy_from_slice(&duty.to_le_bytes());
-    } else {
-        usb_buf[i_ch] = 0xFF;
+        let i_ch = 3 + 10 * self.channel;
+        let (prescale, period, duty) = get_registers(&self.px)?;
+
+        if self.px.is_on {
+            usb_buf[i_ch] = 0x80 | prescale;
+            usb_buf[i_ch + 1..=i_ch + 4].copy_from_slice(&period.to_le_bytes());
+            usb_buf[i_ch + 5..=i_ch + 8].copy_from_slice(&duty.to_le_bytes());
+        } else {
+            usb_buf[i_ch] = 0xFF;
+        }
+
+        Ok(())
     }
 
-    Ok(())
+    fn handle_rx(self, _usb_buf: &[u8; 64], scope_state: &Arc<RwLock<NscopeState>>) -> Option<Self> {
+        let mut state = scope_state.write().unwrap();
+        state.pulse_output[self.channel] = self.px;
+        self.sender.send(self.px).unwrap();
+        None
+    }
 }
