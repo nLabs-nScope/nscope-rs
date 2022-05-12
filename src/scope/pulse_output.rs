@@ -17,7 +17,7 @@ use crate::scope::commands::{Command, ScopeCommand};
 use crate::scope::NscopeState;
 
 #[derive(Debug, Copy, Clone)]
-pub enum PulsePreScale {
+enum PulsePreScale {
     One,
     Eight,
     SixtyFour,

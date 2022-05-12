@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     nscope.set_ax_on(1, true);
 
     // nscope.s
-    let rx = nscope.request();
+    let _rx = nscope.request();
 
     thread::sleep(time::Duration::from_secs(100));
 

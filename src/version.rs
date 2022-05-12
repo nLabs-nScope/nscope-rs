@@ -11,7 +11,7 @@
 use git_version::git_version;
 use regex::Regex;
 
-pub fn ver() -> String {
+pub fn version() -> String {
     let git_description = git_version!(
         args = ["--always", "--tags", "--dirty"],
         suffix = "",
@@ -32,7 +32,7 @@ mod tests {
     #[test]
     fn cargo_version_matches_git_version() {
         let cargo_version = env!("CARGO_PKG_VERSION").to_owned();
-        let git_version = ver();
+        let git_version = version();
 
         let cargo_semver = Version::parse(&cargo_version);
         let git_semver = Version::parse(&git_version);
@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn version_is_valid_semver() {
-        let v = ver();
+        let v = version();
         assert!(Version::parse(&v).is_ok(), "invalid version: {}", v);
     }
 }

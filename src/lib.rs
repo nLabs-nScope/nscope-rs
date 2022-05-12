@@ -10,7 +10,7 @@
 
 mod lab_bench;
 mod scope;
-mod ver;
+mod version;
 
 pub use lab_bench::LabBench;
 pub use lab_bench::NscopeLink;
@@ -20,4 +20,4 @@ pub use scope::pulse_output::*;
 pub use scope::analog_output::*;
 pub use scope::analog_input::*;
 pub use scope::trigger::*;
-pub use ver::ver;
+pub use version::version;
