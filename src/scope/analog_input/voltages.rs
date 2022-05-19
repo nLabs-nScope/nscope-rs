@@ -54,7 +54,7 @@ impl super::AnalogInput {
     }
 
     fn gain_resistance(&self) -> f64 {
-        100_000.0 + self.gain_setting as f64 / 256.0 + 75.0
+        100_000.0 * self.gain_setting as f64 / 256.0 + 75.0
     }
 }
 
@@ -69,6 +69,7 @@ impl super::AnalogInput {
     fn set_offset(&mut self, offset_voltage: f64) {
         let desired_offset_setting = offset_voltage * 64.0 / 3.3;
         self.offset_setting = desired_offset_setting as u8;
+        self.offset_setting = self.offset_setting.clamp(0, 64);
     }
 
     fn offset_voltage(&self) -> f64 {

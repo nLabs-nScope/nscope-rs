@@ -8,8 +8,7 @@
  *
  **************************************************************************************************/
 
-use nscope::{LabBench};
-use std::{thread, time};
+use nscope::LabBench;
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -21,14 +20,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Open the first available nScope
     let nscope = bench.open_first_available()?;
 
-    nscope.set_ax_on(1, true);
+    nscope.set_ax_on(0, true);
 
     // nscope.s
-    let _rx = nscope.request();
+    let rx = nscope.request(4.0,20);
 
-    thread::sleep(time::Duration::from_secs(100));
+    for sample in rx {
+        println!("{:?}", sample.data);
+    }
 
-    nscope.set_ax_on(1, false);
+    nscope.set_ax_on(0, false);
 
     Ok(())
 }

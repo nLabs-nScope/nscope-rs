@@ -9,7 +9,7 @@
  **************************************************************************************************/
 
 use hidapi::{DeviceInfo, HidApi, HidDevice};
-use log::trace;
+use log::{error, trace};
 use std::error::Error;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, mpsc, RwLock};
@@ -175,7 +175,7 @@ impl Nscope {
                         trace!("Finished request ID: {}", response.request_id);
                     }
                 } else {
-                    eprintln!("Received response for request {}, but cannot find a record of that request", response.request_id);
+                    error!("Received response for request {}, but cannot find a record of that request", response.request_id);
                 }
             }
         }
