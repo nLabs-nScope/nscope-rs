@@ -10,11 +10,13 @@
 
 use std::error::Error;
 use std::str::FromStr;
-use super::commands::Command;
 use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::Sender;
+
 use crate::scope::commands::ScopeCommand;
 use crate::scope::NscopeState;
+
+use super::commands::Command;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AnalogWaveType {
@@ -78,7 +80,7 @@ impl AnalogOutput {
                 amplitude: 1.0,
                 wave_type: AnalogWaveType::Sine,
                 polarity: AnalogSignalPolarity::Unipolar,
-            })
+            }),
         }
     }
 
@@ -126,87 +128,28 @@ impl AnalogOutput {
         self.state.write().unwrap().is_on = false;
         self.set()
     }
+
+    pub fn set_frequency(&self, desired_hz: f64) {
+        self.state.write().unwrap().frequency = desired_hz;
+        self.set()
+    }
+
+    pub fn set_amplitude(&self, desired_volts: f64) {
+        self.state.write().unwrap().amplitude = desired_volts;
+        self.set()
+    }
+
+    pub fn set_wave_type(&self, wave_type: AnalogWaveType) {
+        self.state.write().unwrap().wave_type = wave_type;
+        self.set()
+    }
+
+    pub fn set_polarity(&self, polarity: AnalogSignalPolarity) {
+        self.state.write().unwrap().polarity = polarity;
+        self.set()
+    }
 }
 
-
-
-// impl Nscope {
-//     pub fn get_ax(&self, channel: usize) -> AnalogOutput {
-//         let state = self.state.read().unwrap();
-//         state.analog_output[channel]
-//     }
-//
-//     pub(crate) fn set_ax(&self, channel: usize, ax: AnalogOutput) -> Receiver<AnalogOutput> {
-//         // Create a method for the backend to communicate back to us what we want
-//         let (tx, rx) = mpsc::channel::<AnalogOutput>();
-//
-//         // Create the command to set an analog output
-//         let command = Command::SetAnalogOutput(AxRequest{
-//             channel,
-//             ax,
-//             sender: tx,
-//         });
-//
-//         // Send the command to the backend
-//         self.command_tx.send(command).unwrap();
-//         rx
-//     }
-//
-//     pub fn set_ax_on(&self, channel: usize, on: bool) -> AnalogOutput {
-//         // Get the current state of the analog output
-//         let mut requested_ax = self.get_ax(channel);
-//         requested_ax.is_on = on;
-//
-//         let rx = self.set_ax(channel, requested_ax);
-//
-//         // Wait for the backend to receive a response and return the result
-//         rx.recv().unwrap()
-//     }
-//
-//     pub fn set_ax_frequency_hz(&self, channel: usize, freq: f64) -> AnalogOutput {
-//         // Get the current state of the analog output
-//         let mut requested_ax = self.get_ax(channel);
-//         requested_ax.frequency = freq;
-//
-//         let rx = self.set_ax(channel, requested_ax);
-//
-//         // Wait for the backend to receive a response and return the result
-//         rx.recv().unwrap()
-//     }
-//
-//     pub fn set_ax_amplitude(&self, channel: usize, amplitude: f64) -> AnalogOutput {
-//         // Get the current state of the analog output
-//         let mut requested_ax = self.get_ax(channel);
-//         requested_ax.amplitude = amplitude;
-//
-//         let rx = self.set_ax(channel, requested_ax);
-//
-//         // Wait for the backend to receive a response and return the result
-//         rx.recv().unwrap()
-//     }
-//
-//     pub fn set_ax_wave_type(&self, channel: usize, wave_type: AnalogWaveType) -> AnalogOutput {
-//         // Get the current state of the analog output
-//         let mut requested_ax = self.get_ax(channel);
-//         requested_ax.wave_type = wave_type;
-//
-//         let rx = self.set_ax(channel, requested_ax);
-//
-//         // Wait for the backend to receive a response and return the result
-//         rx.recv().unwrap()
-//     }
-//
-//     pub fn set_ax_polarity(&self, channel: usize, polarity: AnalogSignalPolarity) -> AnalogOutput {
-//         // Get the current state of the analog output
-//         let mut requested_ax = self.get_ax(channel);
-//         requested_ax.polarity = polarity;
-//
-//         let rx = self.set_ax(channel, requested_ax);
-//
-//         // Wait for the backend to receive a response and return the result
-//         rx.recv().unwrap()
-//     }
-// }
 
 #[derive(Debug)]
 pub(super) struct AxRequest {

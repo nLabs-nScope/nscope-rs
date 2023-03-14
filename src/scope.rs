@@ -210,6 +210,22 @@ impl Nscope {
         let state = &self.state.read().unwrap();
         state.fw_version.ok_or_else(|| "Cannot read FW version".into())
     }
+
+    pub fn analog_output(&self, channel: usize) -> Option<&AnalogOutput> {
+        match channel {
+            1 => Some(&self.a1),
+            2 => Some(&self.a2),
+            _ => None,
+        }
+    }
+
+    pub fn pulse_output(&self, channel: usize) -> Option<&PulseOutput> {
+        match channel {
+            1 => Some(&self.p1),
+            2 => Some(&self.p2),
+            _ => None,
+        }
+    }
 }
 
 /// When an Nscope goes out of scope, we need to exit the IO loop
