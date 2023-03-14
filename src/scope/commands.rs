@@ -20,9 +20,9 @@ use std::sync::{Arc, RwLock};
 
 pub(super) const NULL_REQ: [u8; 2] = [0, 0xFF];
 
-pub(super) trait ScopeCommand: Sized {
+pub(super) trait ScopeCommand {
     fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>>;
-    fn handle_rx(self, usb_buf: &[u8; 64], scope_state: &Arc<RwLock<NscopeState>>) -> Option<Self>;
+    fn handle_rx(self, usb_buf: &[u8; 64], scope_state: &Arc<RwLock<NscopeState>>) -> Option<Self> where Self: Sized;
 }
 
 // Check out initialization

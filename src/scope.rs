@@ -35,7 +35,6 @@ use trigger::Trigger;
 struct NscopeState {
     fw_version: Option<u8>,
     power_status: PowerStatus,
-    analog_output: [AnalogOutput; 2],
     pulse_output: [PulseOutput; 2],
     analog_inputs: [AnalogInput; 4],
     trigger: Trigger,
@@ -43,8 +42,20 @@ struct NscopeState {
 
 /// Object for accessing an nScope
 pub struct Nscope {
-    pub vid: u16,
-    pub pid: u16,
+    pub a1: AnalogOutput,
+    pub a2: AnalogOutput,
+    pub p1: PulseOutput,
+    pub p2: PulseOutput,
+
+    pub ch1: AnalogInput,
+    pub ch2: AnalogInput,
+    pub ch3: AnalogInput,
+    pub ch4: AnalogInput,
+
+    pub trigger: Trigger,
+
+    vid: u16,
+    pid: u16,
     state: Arc<RwLock<NscopeState>>,
     command_tx: Sender<Command>,
     join_handle: Option<JoinHandle<()>>,
@@ -68,7 +79,6 @@ impl Nscope {
         let scope_state = Arc::new(RwLock::new(NscopeState {
             fw_version: None,
             power_status: PowerStatus::default(),
-            analog_output: [AnalogOutput::default(); 2],
             pulse_output: [PulseOutput::default(); 2],
             analog_inputs: [AnalogInput::default(); 4],
             trigger: Trigger::default(),
@@ -80,6 +90,15 @@ impl Nscope {
         }));
 
         let scope = Nscope {
+            a1: AnalogOutput::create(command_tx.clone(), 0),
+            a2: AnalogOutput::create(command_tx.clone(), 1),
+            p1: PulseOutput::default(),
+            p2: PulseOutput::default(),
+            ch1: AnalogInput::default(),
+            ch2: AnalogInput::default(),
+            ch3: AnalogInput::default(),
+            ch4: AnalogInput::default(),
+            trigger: Trigger::default(),
             vid: dev.vendor_id(),
             pid: dev.product_id(),
             state: scope_state,
@@ -89,7 +108,6 @@ impl Nscope {
 
         for ch in 0..2 {
             scope.set_px(ch, PulseOutput::default()).recv()?;
-            scope.set_ax(ch, AnalogOutput::default()).recv()?;
         }
 
         Ok(scope)

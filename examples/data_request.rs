@@ -20,16 +20,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Open the first available nScope
     let nscope = bench.open_first_available()?;
 
-    nscope.set_ax_on(0, true);
+    nscope.a1.turn_on();
 
-    // nscope.s
     let rx = nscope.request(4.0,20);
 
     for sample in rx {
         println!("{:?}", sample.data);
     }
 
-    nscope.set_ax_on(0, false);
+    nscope.a1.turn_off();
 
     Ok(())
 }
