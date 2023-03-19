@@ -56,7 +56,6 @@ impl Nscope {
                 "nScope connection aborted",
             ));
         }
-        let state = self.state.read().unwrap();
-        Ok(state.power_status)
+        Ok(*self.power_status.read().unwrap())
     }
 }

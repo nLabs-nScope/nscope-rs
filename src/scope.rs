@@ -8,13 +8,21 @@
  *
  **************************************************************************************************/
 
+use std::{fmt, thread};
+use std::error::Error;
+use std::sync::{Arc, mpsc, RwLock};
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread::JoinHandle;
+
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 use log::{error, trace};
-use std::error::Error;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{Arc, mpsc, RwLock};
-use std::thread::JoinHandle;
-use std::{fmt, thread};
+
+use analog_input::AnalogInput;
+use analog_output::AnalogOutput;
+use commands::Command;
+use power::PowerStatus;
+use pulse_output::PulseOutput;
+use trigger::Trigger;
 
 mod commands;
 pub mod analog_input;
@@ -23,22 +31,6 @@ pub mod pulse_output;
 pub mod trigger;
 pub mod power;
 pub mod data_requests;
-
-use analog_output::AnalogOutput;
-use commands::Command;
-use power::PowerStatus;
-use pulse_output::PulseOutput;
-use analog_input::AnalogInput;
-use trigger::Trigger;
-
-
-struct NscopeState {
-    fw_version: Option<u8>,
-    power_status: PowerStatus,
-    pulse_output: [PulseOutput; 2],
-    analog_inputs: [AnalogInput; 4],
-    trigger: Trigger,
-}
 
 /// Object for accessing an nScope
 pub struct Nscope {
@@ -56,7 +48,9 @@ pub struct Nscope {
 
     vid: u16,
     pid: u16,
-    state: Arc<RwLock<NscopeState>>,
+
+    fw_version: Arc<RwLock<Option<u8>>>,
+    power_status: Arc<RwLock<PowerStatus>>,
     command_tx: Sender<Command>,
     join_handle: Option<JoinHandle<()>>,
 }
@@ -76,24 +70,23 @@ impl Nscope {
         // Create communication channels to scope
         let (command_tx, command_rx) = mpsc::channel::<Command>();
 
-        let scope_state = Arc::new(RwLock::new(NscopeState {
-            fw_version: None,
-            power_status: PowerStatus::default(),
-            pulse_output: [PulseOutput::default(); 2],
-            analog_inputs: [AnalogInput::default(); 4],
-            trigger: Trigger::default(),
-        }));
+        let fw_version = Arc::new(RwLock::new(None));
+        let power_status = Arc::new(RwLock::new(PowerStatus::default()));
 
-        let remote_state = scope_state.clone();
-        let join_handle = Some(thread::spawn(move || {
-            Nscope::run(hid_device, command_rx, remote_state);
-        }));
+        let backend_fw_version = fw_version.clone();
+        let backend_power_status = power_status.clone();
+
+        // Create the communication thread
+        let communication_thread = thread::Builder::new().name("Communication Thread".to_string());
+        let join_handle = communication_thread.spawn(move || {
+            Nscope::run(hid_device, command_rx, backend_fw_version, backend_power_status);
+        }).ok();
 
         let scope = Nscope {
             a1: AnalogOutput::create(command_tx.clone(), 0),
             a2: AnalogOutput::create(command_tx.clone(), 1),
-            p1: PulseOutput::default(),
-            p2: PulseOutput::default(),
+            p1: PulseOutput::create(command_tx.clone(), 0),
+            p2: PulseOutput::create(command_tx.clone(), 1),
             ch1: AnalogInput::default(),
             ch2: AnalogInput::default(),
             ch3: AnalogInput::default(),
@@ -101,14 +94,11 @@ impl Nscope {
             trigger: Trigger::default(),
             vid: dev.vendor_id(),
             pid: dev.product_id(),
-            state: scope_state,
+            fw_version,
+            power_status,
             command_tx,
             join_handle,
         };
-
-        for ch in 0..2 {
-            scope.set_px(ch, PulseOutput::default()).recv()?;
-        }
 
         Ok(scope)
     }
@@ -116,7 +106,8 @@ impl Nscope {
     fn run(
         hid_device: HidDevice,
         command_rx: Receiver<Command>,
-        scope_state: Arc<RwLock<NscopeState>>,
+        fw_version: Arc<RwLock<Option<u8>>>,
+        power_status: Arc<RwLock<PowerStatus>>,
     ) {
         let mut active_requests: Vec<(u8, Command)> = Vec::new();
         let mut incoming_usb_buffer: [u8; 64] = [0u8; 64];
@@ -146,7 +137,7 @@ impl Nscope {
                 }
                 {
                     //TODO: make this block more concise
-                    request_id += 1;
+                    request_id = request_id.wrapping_add(1);
                     if request_id == 0 {
                         request_id += 1
                     }
@@ -171,13 +162,9 @@ impl Nscope {
 
             let response = StatusResponse::new(&incoming_usb_buffer);
 
-            // update the scope power status
-            {
-                let mut state = scope_state.write().unwrap();
-                state.fw_version = Some(response.fw_version);
-                state.power_status.state = response.power_state;
-                state.power_status.usage = response.power_usage as f64 * 5.0 / 255.0;
-            }
+            *fw_version.write().unwrap() = Some(response.fw_version);
+            power_status.write().unwrap().state = response.power_state;
+            power_status.write().unwrap().usage = response.power_usage as f64 * 5.0 / 255.0;
 
             // close out the request
             if response.request_id > 0 {
@@ -186,7 +173,7 @@ impl Nscope {
                     .position(|(id, _)| id == &response.request_id)
                 {
                     let (_, command) = active_requests.remove(queue_index);
-                    if let Some(command) = command.finish(&incoming_usb_buffer, &scope_state) {
+                    if let Some(command) = command.finish(&incoming_usb_buffer) {
                         active_requests.push((response.request_id, command));
                         trace!("Received request ID: {}", response.request_id);
                     } else {
@@ -201,14 +188,12 @@ impl Nscope {
 
     // Todo: come up with a better way of determining this
     pub fn is_connected(&self) -> bool {
-        Arc::strong_count(&self.state) > 1
+        Arc::strong_count(&self.fw_version) > 1
     }
 
 
-
     pub fn fw_version(&self) -> Result<u8, Box<dyn Error>> {
-        let state = &self.state.read().unwrap();
-        state.fw_version.ok_or_else(|| "Cannot read FW version".into())
+        self.fw_version.read().unwrap().ok_or_else(|| "Cannot read FW version".into())
     }
 
     pub fn analog_output(&self, channel: usize) -> Option<&AnalogOutput> {

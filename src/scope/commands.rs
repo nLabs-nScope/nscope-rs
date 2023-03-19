@@ -13,16 +13,14 @@ use super::data_requests::DataRequest;
 use std::error::Error;
 use super::analog_output::AxRequest;
 use super::pulse_output::PxRequest;
-use super::NscopeState;
 use log::debug;
-use std::sync::{Arc, RwLock};
 
 
 pub(super) const NULL_REQ: [u8; 2] = [0, 0xFF];
 
 pub(super) trait ScopeCommand {
     fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>>;
-    fn handle_rx(self, usb_buf: &[u8; 64], scope_state: &Arc<RwLock<NscopeState>>) -> Option<Self> where Self: Sized;
+    fn handle_rx(self, usb_buf: &[u8; 64]) -> Option<Self> where Self: Sized;
 }
 
 // Check out initialization
@@ -58,12 +56,12 @@ impl Command {
         }
     }
 
-    pub(super) fn finish(self, buffer: &[u8; 64], scope_state: &Arc<RwLock<NscopeState>>) -> Option<Self> {
+    pub(super) fn finish(self, buffer: &[u8; 64]) -> Option<Self> {
         match self {
             Command::Quit => { None }
-            Command::SetAnalogOutput(cmd) => { cmd.handle_rx(buffer, scope_state).map(Command::SetAnalogOutput) }
-            Command::SetPulseOutput(cmd) => { cmd.handle_rx(buffer, scope_state).map(Command::SetPulseOutput) }
-            Command::RequestData(cmd) => { cmd.handle_rx(buffer, scope_state).map(Command::RequestData) }
+            Command::SetAnalogOutput(cmd) => { cmd.handle_rx(buffer).map(Command::SetAnalogOutput) }
+            Command::SetPulseOutput(cmd) => { cmd.handle_rx(buffer).map(Command::SetPulseOutput) }
+            Command::RequestData(cmd) => { cmd.handle_rx(buffer).map(Command::RequestData) }
         }
     }
 }

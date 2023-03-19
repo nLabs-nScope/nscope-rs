@@ -10,11 +10,10 @@
 
 use std::error::Error;
 use std::str::FromStr;
-use std::sync::{Arc, mpsc, RwLock};
+use std::sync::{mpsc, RwLock};
 use std::sync::mpsc::Sender;
 
 use crate::scope::commands::ScopeCommand;
-use crate::scope::NscopeState;
 
 use super::commands::Command;
 
@@ -84,14 +83,14 @@ impl AnalogOutput {
         }
     }
 
-    fn set(&self) {
+    fn set(&self, ax_state: AnalogOutputState) {
         // Create a method for the backend to communicate back to us what we want
         let (tx, rx) = mpsc::channel::<AnalogOutputState>();
 
         // Create the command to set an analog output
         let command = Command::SetAnalogOutput(AxRequest {
             channel: self.channel,
-            ax: *self.state.read().unwrap(),
+            ax_state,
             sender: tx,
 
         });
@@ -99,8 +98,10 @@ impl AnalogOutput {
         // Send the command to the backend
         self.command_tx.send(command).unwrap();
 
-        // Wait for the response from the backend, set the state to be what was written by the backend
-        *self.state.write().unwrap() = rx.recv().unwrap();
+        // Wait for the response from the backend
+        let response_state = rx.recv().unwrap();
+        // Write the response state
+        *self.state.write().unwrap() = response_state;
     }
 
     pub fn is_on(&self) -> bool {
@@ -121,32 +122,38 @@ impl AnalogOutput {
 
 
     pub fn turn_on(&self) {
-        self.state.write().unwrap().is_on = true;
-        self.set()
+        let mut state = *self.state.read().unwrap();
+        state.is_on = true;
+        self.set(state)
     }
     pub fn turn_off(&self) {
-        self.state.write().unwrap().is_on = false;
-        self.set()
+        let mut state = *self.state.read().unwrap();
+        state.is_on = false;
+        self.set(state)
     }
 
     pub fn set_frequency(&self, desired_hz: f64) {
-        self.state.write().unwrap().frequency = desired_hz;
-        self.set()
+        let mut state = *self.state.read().unwrap();
+        state.frequency = desired_hz;
+        self.set(state)
     }
 
     pub fn set_amplitude(&self, desired_volts: f64) {
-        self.state.write().unwrap().amplitude = desired_volts;
-        self.set()
+        let mut state = *self.state.read().unwrap();
+        state.amplitude = desired_volts;
+        self.set(state)
     }
 
     pub fn set_wave_type(&self, wave_type: AnalogWaveType) {
-        self.state.write().unwrap().wave_type = wave_type;
-        self.set()
+        let mut state = *self.state.read().unwrap();
+        state.wave_type = wave_type;
+        self.set(state)
     }
 
     pub fn set_polarity(&self, polarity: AnalogSignalPolarity) {
-        self.state.write().unwrap().polarity = polarity;
-        self.set()
+        let mut state = *self.state.read().unwrap();
+        state.polarity = polarity;
+        self.set(state)
     }
 }
 
@@ -154,7 +161,7 @@ impl AnalogOutput {
 #[derive(Debug)]
 pub(super) struct AxRequest {
     channel: usize,
-    ax: AnalogOutputState,
+    ax_state: AnalogOutputState,
     sender: Sender<AnalogOutputState>,
 }
 
@@ -163,11 +170,11 @@ impl ScopeCommand for AxRequest {
         usb_buf[1] = 0x02;
 
         let i_ch = 3 + 10 * self.channel;
-        if self.ax.is_on {
-            usb_buf[i_ch] = self.ax.wave_type as u8;
+        if self.ax_state.is_on {
+            usb_buf[i_ch] = self.ax_state.wave_type as u8;
             usb_buf[i_ch] |= 0x80;
 
-            let scaled_frequency = self.ax.frequency * 2.0_f64.powi(28) / 4000000.0;
+            let scaled_frequency = self.ax_state.frequency * 2.0_f64.powi(28) / 4000000.0;
             let freq_register: u32 = scaled_frequency as u32;
 
             usb_buf[i_ch + 1] = (freq_register & 0x00FF) as u8;
@@ -175,7 +182,7 @@ impl ScopeCommand for AxRequest {
             usb_buf[i_ch + 3] = (freq_register >> 14 & 0x00FF) as u8;
             usb_buf[i_ch + 4] = ((freq_register >> 14 & 0x3F00) >> 8) as u8;
 
-            if self.ax.amplitude < 0.0 {
+            if self.ax_state.amplitude < 0.0 {
                 usb_buf[i_ch] |= 0x2;
             }
             let rf = 49900.0;
@@ -183,15 +190,15 @@ impl ScopeCommand for AxRequest {
             let rm = 75.0;
             let rv = 100000.0 / 257.0;
 
-            let gain: u8 = match self.ax.polarity {
-                AnalogSignalPolarity::Unipolar => ((vin * rf / self.ax.amplitude.abs() - rm) / rv) as u8,
+            let gain: u8 = match self.ax_state.polarity {
+                AnalogSignalPolarity::Unipolar => ((vin * rf / self.ax_state.amplitude.abs() - rm) / rv) as u8,
                 AnalogSignalPolarity::Bipolar => {
-                    ((vin * rf / 2.0 / self.ax.amplitude.abs() - rm) / rv) as u8
+                    ((vin * rf / 2.0 / self.ax_state.amplitude.abs() - rm) / rv) as u8
                 }
             };
 
             let offset: u8 = ((rm + rv * (gain as f64)) / (rm + rv * (gain as f64) + rf)
-                * self.ax.amplitude.abs()
+                * self.ax_state.amplitude.abs()
                 * 255.0
                 / 3.05) as u8;
 
@@ -203,8 +210,8 @@ impl ScopeCommand for AxRequest {
         Ok(())
     }
 
-    fn handle_rx(self, _usb_buf: &[u8; 64], _scope_state: &Arc<RwLock<NscopeState>>) -> Option<Self> {
-        self.sender.send(self.ax).unwrap();
+    fn handle_rx(self, _usb_buf: &[u8; 64]) -> Option<Self> {
+        self.sender.send(self.ax_state).unwrap();
         None
     }
 }

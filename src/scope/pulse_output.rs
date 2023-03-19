@@ -9,12 +9,11 @@
  **************************************************************************************************/
 
 use std::error::Error;
-use std::sync::{Arc, mpsc, RwLock};
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{mpsc, RwLock};
+use std::sync::mpsc::Sender;
 use std::time::Duration;
-use crate::Nscope;
+
 use crate::scope::commands::{Command, ScopeCommand};
-use crate::scope::NscopeState;
 
 #[derive(Debug, Copy, Clone)]
 enum PulsePreScale {
@@ -46,92 +45,106 @@ impl PulsePreScale {
 
 /// Interface to a pulse output
 #[derive(Debug, Copy, Clone)]
-pub struct PulseOutput {
+pub struct PulseOutputState {
     pub is_on: bool,
     pub frequency: f64,
     pub duty: f64,
 }
 
-impl Default for PulseOutput {
-    fn default() -> Self {
-        PulseOutput {
-            is_on: false,
-            frequency: 1.0,
-            duty: 0.5,
-        }
-    }
-}
-
-impl PulseOutput {
-    fn period(&self) -> Duration {
+impl PulseOutputState {
+    pub fn period(&self) -> Duration {
         let period = 1.0 / self.frequency;
         Duration::from_secs_f64(period)
     }
-
-    fn pulse_width(&self) -> Duration {
+    pub fn pulse_width(&self) -> Duration {
         let period = self.period();
         period.mul_f64(self.duty)
     }
 }
 
-impl Nscope {
-    pub fn get_px(&self, channel: usize) -> PulseOutput {
-        let state = self.state.read().unwrap();
-        state.pulse_output[channel]
+#[derive(Debug)]
+pub struct PulseOutput {
+    pub channel: usize,
+    command_tx: Sender<Command>,
+    state: RwLock<PulseOutputState>,
+}
+
+
+impl PulseOutput {
+    pub(super) fn create(cmd_tx: Sender<Command>, px_channel: usize) -> Self {
+        PulseOutput {
+            command_tx: cmd_tx,
+            channel: px_channel,
+            state: RwLock::new(PulseOutputState {
+                is_on: false,
+                frequency: 1.0,
+                duty: 0.5,
+            }),
+        }
     }
 
-    pub(crate) fn set_px(&self, channel: usize, px: PulseOutput) -> Receiver<PulseOutput> {
+    fn set(&self, px_state: PulseOutputState) {
         // Create a method for the backend to communicate back to us what we want
-        let (tx, rx) = mpsc::channel::<PulseOutput>();
+        let (tx, rx) = mpsc::channel::<PulseOutputState>();
 
         // Create the command to set an analog output
         let command = Command::SetPulseOutput(PxRequest {
-            channel,
-            px,
+            channel: self.channel,
+            px_state,
             sender: tx,
+
         });
 
         // Send the command to the backend
         self.command_tx.send(command).unwrap();
-        rx
+
+        // Wait for the response from the backend
+        let response_state = rx.recv().unwrap();
+        // Write the response state
+        *self.state.write().unwrap() = response_state;
     }
 
-    pub fn set_px_on(&self, channel: usize, on: bool) -> PulseOutput {
-        // Get the current state of the analog output
-        let mut requested_px = self.get_px(channel);
-        requested_px.is_on = on;
-
-        let rx = self.set_px(channel, requested_px);
-
-        // Wait for the backend to receive a response and return the result
-        rx.recv().unwrap()
+    pub fn is_on(&self) -> bool {
+        self.state.read().unwrap().is_on
+    }
+    pub fn frequency(&self) -> f64 {
+        self.state.read().unwrap().frequency
+    }
+    pub fn duty(&self) -> f64 {
+        self.state.read().unwrap().duty
+    }
+    pub fn period(&self) -> Duration {
+        self.state.read().unwrap().period()
+    }
+    pub fn pulse_width(&self) -> Duration {
+        self.state.read().unwrap().pulse_width()
     }
 
-    pub fn set_px_frequency_hz(&self, channel: usize, freq: f64) -> PulseOutput {
-        // Get the current state of the analog output
-        let mut requested_px = self.get_px(channel);
-        requested_px.frequency = freq;
-
-        let rx = self.set_px(channel, requested_px);
-
-        // Wait for the backend to receive a response and return the result
-        rx.recv().unwrap()
+    pub fn turn_on(&self) {
+        let mut state = *self.state.read().unwrap();
+        state.is_on = true;
+        self.set(state)
+    }
+    pub fn turn_off(&self) {
+        let mut state = *self.state.read().unwrap();
+        state.is_on = false;
+        self.set(state)
     }
 
-    pub fn set_px_duty(&self, channel: usize, duty: f64) -> PulseOutput {
-        // Get the current state of the analog output
-        let mut requested_px = self.get_px(channel);
-        requested_px.duty = duty;
+    pub fn set_frequency(&self, desired_hz: f64) {
+        let mut state = *self.state.read().unwrap();
+        state.frequency = desired_hz;
+        self.set(state)
+    }
 
-        let rx = self.set_px(channel, requested_px);
-
-        // Wait for the backend to receive a response and return the result
-        rx.recv().unwrap()
+    pub fn set_duty(&self, desired_percentage: f64) {
+        let mut state = *self.state.read().unwrap();
+        state.duty = desired_percentage;
+        self.set(state)
     }
 }
 
-
-fn get_registers(pulse_output: &PulseOutput) -> Result<(u8, u32, u32), Box<dyn Error>> {
+fn get_registers(pulse_output: &PulseOutputState) -> Result<(u8, u32, u32), Box<dyn Error>> {
 
     // The period and duty registers are an integeter number of 16 MHz clock cycles
     let period = (pulse_output.period().as_nanos() * 16 / 1000) as u64;
@@ -160,8 +173,8 @@ fn get_registers(pulse_output: &PulseOutput) -> Result<(u8, u32, u32), Box<dyn E
 #[derive(Debug)]
 pub(super) struct PxRequest {
     channel: usize,
-    px: PulseOutput,
-    sender: Sender<PulseOutput>,
+    px_state: PulseOutputState,
+    sender: Sender<PulseOutputState>,
 }
 
 impl ScopeCommand for PxRequest {
@@ -169,9 +182,9 @@ impl ScopeCommand for PxRequest {
         usb_buf[1] = 0x01;
 
         let i_ch = 3 + 10 * self.channel;
-        let (prescale, period, duty) = get_registers(&self.px)?;
+        let (prescale, period, duty) = get_registers(&self.px_state)?;
 
-        if self.px.is_on {
+        if self.px_state.is_on {
             usb_buf[i_ch] = 0x80 | prescale;
             usb_buf[i_ch + 1..=i_ch + 4].copy_from_slice(&period.to_le_bytes());
             usb_buf[i_ch + 5..=i_ch + 8].copy_from_slice(&duty.to_le_bytes());
@@ -182,10 +195,8 @@ impl ScopeCommand for PxRequest {
         Ok(())
     }
 
-    fn handle_rx(self, _usb_buf: &[u8; 64], scope_state: &Arc<RwLock<NscopeState>>) -> Option<Self> {
-        let mut state = scope_state.write().unwrap();
-        state.pulse_output[self.channel] = self.px;
-        self.sender.send(self.px).unwrap();
+    fn handle_rx(self, _usb_buf: &[u8; 64]) -> Option<Self> {
+        self.sender.send(self.px_state).unwrap();
         None
     }
 }

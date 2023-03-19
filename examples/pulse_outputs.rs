@@ -21,16 +21,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Open the first available nScope
     let nscope = bench.open_first_available()?;
 
-    nscope.set_px_on(1, true);
-
+    nscope.p1.turn_on();
     thread::sleep(time::Duration::from_secs(10));
+    nscope.p1.turn_off();
 
-    nscope.set_px_on(1, false);
-    nscope.set_px_on(0, true);
-
+    nscope.p2.turn_on();
     thread::sleep(time::Duration::from_secs(10));
-
-    nscope.set_px_on(0, false);
+    nscope.p2.turn_off();
 
     Ok(())
 }

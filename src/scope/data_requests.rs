@@ -9,11 +9,10 @@
  **************************************************************************************************/
 
 use std::error::Error;
-use std::sync::{Arc, mpsc, RwLock};
+use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use log::trace;
 
-use crate::scope::NscopeState;
 use super::commands::ScopeCommand;
 use super::Command;
 use super::Nscope;
@@ -40,13 +39,11 @@ impl Nscope {
     pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32) -> Receiver<Sample> {
         let (tx, rx) = mpsc::channel::<Sample>();
 
-        let state = self.state.read().unwrap();
-
         let command = Command::RequestData(DataRequest {
-            channels: state.analog_inputs,
+            channels: [self.ch1, self.ch2, self.ch3, self.ch4],
             sample_rate_hz,
             remaining_samples: number_of_samples,
-            trigger: state.trigger,
+            trigger: self.trigger,
             sender: tx,
         });
 
@@ -94,7 +91,7 @@ impl ScopeCommand for DataRequest {
         Ok(())
     }
 
-    fn handle_rx(mut self, usb_buf: &[u8; 64], _scope_state: &Arc<RwLock<NscopeState>>) -> Option<Self> {
+    fn handle_rx(mut self, usb_buf: &[u8; 64]) -> Option<Self> {
         let number_received_samples = usb_buf[3] as u32;
 
         self.remaining_samples -= number_received_samples;
