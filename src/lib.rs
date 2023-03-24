@@ -19,5 +19,6 @@ pub use scope::power::*;
 pub use scope::pulse_output::*;
 pub use scope::analog_output::*;
 pub use scope::analog_input::*;
+pub use scope::data_requests::*;
 pub use scope::trigger::*;
 pub use version::version;

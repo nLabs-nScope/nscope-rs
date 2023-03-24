@@ -26,7 +26,7 @@ pub struct Sample {
 }
 
 #[derive(Debug)]
-pub struct DataRequest {
+pub(super) struct DataRequest {
     pub channels: [AnalogInput; 4],
     pub sample_rate_hz: f64,
     pub remaining_samples: u32,

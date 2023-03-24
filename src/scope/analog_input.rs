@@ -12,7 +12,7 @@ mod voltages;
 
 #[derive(Debug, Copy, Clone)]
 pub struct AnalogInput {
-    pub is_on: bool,
+    pub(crate) is_on: bool,
     pub(crate) gain_setting: u8,
     pub(crate) offset_setting: u8,
 }
@@ -26,6 +26,21 @@ impl Default for AnalogInput {
         };
         analog_input.set_range(-5.0, 5.0);
         analog_input
+    }
+}
+
+impl AnalogInput {
+
+    pub fn is_on(&self) -> bool {
+        self.is_on
+    }
+
+    pub fn turn_on(&mut self) {
+        self.is_on = true;
+    }
+
+    pub fn turn_off(&mut self) {
+        self.is_on = false;
     }
 }
 

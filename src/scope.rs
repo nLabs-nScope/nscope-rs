@@ -211,6 +211,16 @@ impl Nscope {
             _ => None,
         }
     }
+
+    pub fn channel(&self, channel: usize) -> Option<&AnalogInput> {
+        match channel {
+            1 => Some(&self.ch1),
+            2 => Some(&self.ch2),
+            3 => Some(&self.ch3),
+            4 => Some(&self.ch4),
+            _ => None,
+        }
+    }
 }
 
 /// When an Nscope goes out of scope, we need to exit the IO loop

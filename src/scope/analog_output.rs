@@ -53,7 +53,7 @@ impl FromStr for AnalogSignalPolarity {
 
 /// Interface to an analog output
 #[derive(Clone, Copy, Debug)]
-pub struct AnalogOutputState {
+struct AnalogOutputState {
     is_on: bool,
     frequency: f64,
     amplitude: f64,

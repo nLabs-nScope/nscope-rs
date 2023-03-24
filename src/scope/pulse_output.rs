@@ -45,7 +45,7 @@ impl PulsePreScale {
 
 /// Interface to a pulse output
 #[derive(Debug, Copy, Clone)]
-pub struct PulseOutputState {
+struct PulseOutputState {
     pub is_on: bool,
     pub frequency: f64,
     pub duty: f64,
