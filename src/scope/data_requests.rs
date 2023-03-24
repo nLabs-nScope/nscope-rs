@@ -19,7 +19,7 @@ use super::Nscope;
 use super::AnalogInput;
 use super::Trigger;
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct Sample {
     pub time_since_start: f64,
     pub data: [Option<f64>; 4],
