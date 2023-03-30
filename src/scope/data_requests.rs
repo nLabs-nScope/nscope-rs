@@ -22,7 +22,13 @@ use super::Trigger;
 #[derive(Debug, Default, Clone)]
 pub struct Sample {
     pub time_since_start: f64,
-    pub data: [Option<f64>; 4],
+    pub data: [Option<f64>; Sample::num_channels() as usize],
+}
+
+impl Sample {
+    pub const fn num_channels() -> u32 {
+        return 4;
+    }
 }
 
 #[derive(Debug)]
