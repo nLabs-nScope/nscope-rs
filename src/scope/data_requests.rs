@@ -29,6 +29,10 @@ impl Sample {
     pub const fn num_channels() -> u32 {
         return 4;
     }
+
+    pub fn clear(&mut self) {
+        self.data = [None; Sample::num_channels() as usize];
+    }
 }
 
 #[derive(Debug)]
