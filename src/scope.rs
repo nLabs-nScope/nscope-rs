@@ -9,6 +9,7 @@
  **************************************************************************************************/
 
 use std::{fmt, thread};
+use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
@@ -23,6 +24,7 @@ use commands::Command;
 use power::PowerStatus;
 use pulse_output::PulseOutput;
 use trigger::Trigger;
+use crate::scope::data_requests::StopRequest;
 
 mod commands;
 pub mod analog_input;
@@ -73,13 +75,14 @@ impl Nscope {
         let fw_version = Arc::new(RwLock::new(None));
         let power_status = Arc::new(RwLock::new(PowerStatus::default()));
 
+        let backend_command_tx = command_tx.clone();
         let backend_fw_version = fw_version.clone();
         let backend_power_status = power_status.clone();
 
         // Create the communication thread
         let communication_thread = thread::Builder::new().name("Communication Thread".to_string());
         let join_handle = communication_thread.spawn(move || {
-            Nscope::run(hid_device, command_rx, backend_fw_version, backend_power_status);
+            Nscope::run(hid_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
         }).ok();
 
         let scope = Nscope {
@@ -105,23 +108,38 @@ impl Nscope {
 
     fn run(
         hid_device: HidDevice,
+        command_tx: Sender<Command>,
         command_rx: Receiver<Command>,
         fw_version: Arc<RwLock<Option<u8>>>,
         power_status: Arc<RwLock<PowerStatus>>,
     ) {
-        let mut active_requests: Vec<(u8, Command)> = Vec::new();
+        let mut active_requests_map: HashMap<u8, Command> = HashMap::new();
+        let mut active_data_request: Option<u8> = None;
         let mut incoming_usb_buffer: [u8; 64] = [0u8; 64];
         let mut outgoing_usb_buffer: [u8; 65] = [0u8; 65];
         let mut request_id: u8 = 0;
 
         'communication: loop {
-            // check for an incoming command
+            // Check first to see if we have a cancelled active request
+            if let Some(id) = &active_data_request {
+                // We have an active request id
+                if let Command::RequestData(rq) = active_requests_map.get(id).unwrap() {
+                    // we get the active request
+                    if let Ok(()) = rq.stop_recv.try_recv() {
+                        // We have recieved a stop signal
+                        command_tx.send(Command::StopData(StopRequest{})).unwrap();
+                    }
+                }
+            }
+
+
+            // check for an incoming command from the user
             // Do one of the following:
-            // 1. Write a request
+            // 1. Write a request to do the command
             // 2. Write a null packet to request an update on the power status
 
             if let Ok(mut command) = command_rx.try_recv() {
-                if let Command::Quit = command {
+                if let Command::Quit = &command {
                     break;
                 }
 
@@ -147,8 +165,13 @@ impl Nscope {
                     eprintln!("USB write error, ending nScope connection");
                     break 'communication;
                 }
-                active_requests.push((request_id, command));
+
+                if let Command::RequestData(_) = &command {
+                    active_data_request = Some(request_id);
+                }
+                active_requests_map.insert(request_id, command);
                 trace!("Sent request {}", request_id);
+
             } else if hid_device.write(&commands::NULL_REQ).is_err() {
                 eprintln!("USB write error, ending nScope connection");
                 break 'communication;
@@ -166,18 +189,37 @@ impl Nscope {
             power_status.write().unwrap().state = response.power_state;
             power_status.write().unwrap().usage = response.power_usage as f64 * 5.0 / 255.0;
 
-            // close out the request
+            // close out request if it's open
             if response.request_id > 0 {
-                if let Some(queue_index) = active_requests
-                    .iter()
-                    .position(|(id, _)| id == &response.request_id)
+
+                // If we have an active request with this ID
+                if let Some(command) = active_requests_map.get(&response.request_id)
                 {
-                    let (_, command) = active_requests.remove(queue_index);
-                    if let Some(command) = command.finish(&incoming_usb_buffer) {
-                        active_requests.push((response.request_id, command));
-                        trace!("Received request ID: {}", response.request_id);
+                    // Handle the incoming usb packet
+                    command.handle_rx(&incoming_usb_buffer);
+
+                    // If the command has finished it's work
+                    if command.is_finished() {
+
+                        // Set the active data request as none if we just finished it
+                        active_data_request = active_data_request.filter(|&id| id != response.request_id);
+
+                        // Remove this request from the active map
+                        if let Some(Command::StopData(_)) = active_requests_map.remove(&response.request_id) {
+                            // If we received the ACK on a stop command, check if we have an active id
+                            if let Some(active_id) = &active_data_request {
+                                // Look up that ID, remove the command from the active map
+                                if let Some(Command::RequestData(rq)) = active_requests_map.remove(active_id) {
+                                    // If that command is a request data command
+                                    *rq.remaining_samples.write().unwrap() = 0;
+                                }
+                                active_data_request = None;
+                            }
+                        }
+
+                        trace!("Finished request ID: {}, ADRQ: {:?}", response.request_id, active_data_request);
                     } else {
-                        trace!("Finished request ID: {}", response.request_id);
+                        trace!("Received request ID: {}, ADRQ: {:?}", response.request_id, active_data_request);
                     }
                 } else {
                     error!("Received response for request {}, but cannot find a record of that request", response.request_id);

@@ -8,19 +8,22 @@
  *
  **************************************************************************************************/
 
-use super::data_requests::DataRequest;
+
 
 use std::error::Error;
-use super::analog_output::AxRequest;
-use super::pulse_output::PxRequest;
+
 use log::debug;
 
+use super::analog_output::AxRequest;
+use super::data_requests::{DataRequest, StopRequest};
+use super::pulse_output::PxRequest;
 
 pub(super) const NULL_REQ: [u8; 2] = [0, 0xFF];
 
 pub(super) trait ScopeCommand {
     fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>>;
-    fn handle_rx(self, usb_buf: &[u8; 64]) -> Option<Self> where Self: Sized;
+    fn handle_rx(&self, usb_buf: &[u8; 64]);
+    fn is_finished(&self) -> bool;
 }
 
 // Check out initialization
@@ -28,7 +31,6 @@ pub(super) trait ScopeCommand {
 // INITIALIZATION_WITH_POWER = 0x07, -- tbd
 
 // Build scope interface
-// STOP_REQUEST = 0x05, -- next up
 // SCOPE_SWEEP_REQUEST = 0x08, -- next up
 
 // Build out featureset
@@ -43,6 +45,7 @@ pub(super) enum Command {
     SetAnalogOutput(AxRequest),
     SetPulseOutput(PxRequest),
     RequestData(DataRequest),
+    StopData(StopRequest),
 }
 
 impl Command {
@@ -53,15 +56,27 @@ impl Command {
             Command::SetAnalogOutput(cmd) => { cmd.fill_tx_buffer(usb_buf) }
             Command::SetPulseOutput(cmd) => { cmd.fill_tx_buffer(usb_buf) }
             Command::RequestData(cmd) => { cmd.fill_tx_buffer(usb_buf) }
+            Command::StopData(cmd) => { cmd.fill_tx_buffer(usb_buf) }
         }
     }
 
-    pub(super) fn finish(self, buffer: &[u8; 64]) -> Option<Self> {
+    pub(super) fn handle_rx(&self, buffer: &[u8; 64]) {
         match self {
-            Command::Quit => { None }
-            Command::SetAnalogOutput(cmd) => { cmd.handle_rx(buffer).map(Command::SetAnalogOutput) }
-            Command::SetPulseOutput(cmd) => { cmd.handle_rx(buffer).map(Command::SetPulseOutput) }
-            Command::RequestData(cmd) => { cmd.handle_rx(buffer).map(Command::RequestData) }
+            Command::Quit => {}
+            Command::SetAnalogOutput(cmd) => { cmd.handle_rx(buffer) }
+            Command::SetPulseOutput(cmd) => { cmd.handle_rx(buffer) }
+            Command::RequestData(cmd) => { cmd.handle_rx(buffer) }
+            Command::StopData(cmd) => { cmd.handle_rx(buffer) }
+        }
+    }
+
+    pub(super) fn is_finished(&self) -> bool {
+        match self {
+            Command::Quit => { true }
+            Command::SetAnalogOutput(cmd) => { cmd.is_finished() }
+            Command::SetPulseOutput(cmd) => { cmd.is_finished() }
+            Command::RequestData(cmd) => { cmd.is_finished() }
+            Command::StopData(cmd) => { cmd.is_finished() }
         }
     }
 }

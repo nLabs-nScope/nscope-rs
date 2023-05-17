@@ -22,9 +22,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     nscope.a1.turn_on();
 
-    let rx = nscope.request(4.0,20);
+    let rq = nscope.request(4.0,20);
 
-    for sample in rx {
+    for sample in rq.receiver {
         println!("{:?}", sample.data);
     }
 

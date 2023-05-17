@@ -9,14 +9,15 @@
  **************************************************************************************************/
 
 use std::error::Error;
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
+
 use log::trace;
 
-use super::commands::ScopeCommand;
-use super::Command;
-use super::Nscope;
 use super::AnalogInput;
+use super::Command;
+use super::commands::ScopeCommand;
+use super::Nscope;
 use super::Trigger;
 
 #[derive(Debug, Default, Clone)]
@@ -26,9 +27,7 @@ pub struct Sample {
 }
 
 impl Sample {
-    pub const fn num_channels() -> u32 {
-        return 4;
-    }
+    pub const fn num_channels() -> u32 { 4 }
 
     pub fn clear(&mut self) {
         self.data = [None; Sample::num_channels() as usize];
@@ -39,27 +38,55 @@ impl Sample {
 pub(super) struct DataRequest {
     pub channels: [AnalogInput; 4],
     pub sample_rate_hz: f64,
-    pub remaining_samples: u32,
+    pub remaining_samples: Arc<RwLock<u32>>,
     pub trigger: Trigger,
     pub sender: Sender<Sample>,
+    pub stop_recv: Receiver<()>,
 }
 
+#[derive(Debug)]
+pub struct RequestHandle {
+    pub receiver: Receiver<Sample>,
+    samples_remaining: Arc<RwLock<u32>>,
+    stop_send: Sender<()>,
+}
+
+#[derive(Debug)]
+pub(super) struct StopRequest {}
 
 impl Nscope {
-    pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32) -> Receiver<Sample> {
+    pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32) -> RequestHandle {
         let (tx, rx) = mpsc::channel::<Sample>();
+        let (stop_send, stop_recv) = mpsc::channel::<()>();
+
+        let remaining_samples = Arc::new(RwLock::new(number_of_samples));
 
         let command = Command::RequestData(DataRequest {
             channels: [self.ch1, self.ch2, self.ch3, self.ch4],
             sample_rate_hz,
-            remaining_samples: number_of_samples,
+            remaining_samples: remaining_samples.clone(),
             trigger: self.trigger,
             sender: tx,
+            stop_recv,
         });
 
         self.command_tx.send(command).unwrap();
 
-        rx
+        RequestHandle {
+            receiver: rx,
+            samples_remaining: remaining_samples,
+            stop_send,
+        }
+    }
+}
+
+impl RequestHandle {
+    pub fn remaining_samples(&self) -> u32 {
+        *self.samples_remaining.read().unwrap()
+    }
+
+    pub fn stop(&self) {
+        self.stop_send.send(()).ok();
     }
 }
 
@@ -78,15 +105,16 @@ impl ScopeCommand for DataRequest {
             _ => { return Err("Unexpected number of channels are on".into()); }
         };
 
-        if samples_between_records < 250 && self.remaining_samples * num_channels_on as u32 > 3200 {
+        let total_samples = *self.remaining_samples.read().unwrap();
+        if samples_between_records < 250 && total_samples * num_channels_on as u32 > 3200 {
             return Err("Data not recordable".into());
         }
 
 
         usb_buf[3..7].copy_from_slice(&samples_between_records.to_le_bytes());
-        usb_buf[7..11].copy_from_slice(&self.remaining_samples.to_le_bytes());
+        usb_buf[7..11].copy_from_slice(&total_samples.to_le_bytes());
 
-        trace!("Requesting {} samples with {} samples between records", self.remaining_samples, samples_between_records);
+        trace!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
 
         for (i, ch) in self.channels.iter().enumerate() {
             if ch.is_on {
@@ -101,11 +129,14 @@ impl ScopeCommand for DataRequest {
         Ok(())
     }
 
-    fn handle_rx(mut self, usb_buf: &[u8; 64]) -> Option<Self> {
+    fn handle_rx(&self, usb_buf: &[u8; 64]) {
         let number_received_samples = usb_buf[3] as u32;
 
-        self.remaining_samples -= number_received_samples;
-        trace!("Received {} samples, {} samples remaining", number_received_samples, self.remaining_samples);
+        {
+            let mut remaining_samples = self.remaining_samples.write().unwrap();
+            *remaining_samples -= number_received_samples;
+            trace!("Received {} samples, {} samples remaining", number_received_samples, remaining_samples);
+        }
 
 
         let mut total_parsed_readings: usize = 0;
@@ -118,7 +149,6 @@ impl ScopeCommand for DataRequest {
 
             for (i, ch) in self.channels.iter().enumerate() {
                 if ch.is_on {
-
                     let byte = 4 + total_parsed_readings / 2 * 3;
 
                     let adc_data = match total_parsed_readings & 1 {
@@ -136,12 +166,18 @@ impl ScopeCommand for DataRequest {
 
             self.sender.send(sample).unwrap();
         }
-
-
-        if self.remaining_samples > 0 {
-            return Some(self);
-        }
-
-        None
     }
+
+    fn is_finished(&self) -> bool {
+        *self.remaining_samples.read().unwrap() == 0
+    }
+}
+
+impl ScopeCommand for StopRequest {
+    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
+        usb_buf[1] = 0x05;
+        Ok(())
+    }
+    fn handle_rx(&self, _usb_buf: &[u8; 64]) { }
+    fn is_finished(&self) -> bool { true }
 }

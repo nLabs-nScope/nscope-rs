@@ -210,8 +210,11 @@ impl ScopeCommand for AxRequest {
         Ok(())
     }
 
-    fn handle_rx(self, _usb_buf: &[u8; 64]) -> Option<Self> {
+    fn handle_rx(&self, _usb_buf: &[u8; 64]) {
         self.sender.send(self.ax_state).unwrap();
-        None
+    }
+
+    fn is_finished(&self) -> bool {
+        true
     }
 }

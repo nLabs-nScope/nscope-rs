@@ -195,8 +195,11 @@ impl ScopeCommand for PxRequest {
         Ok(())
     }
 
-    fn handle_rx(self, _usb_buf: &[u8; 64]) -> Option<Self> {
+    fn handle_rx(&self, _usb_buf: &[u8; 64]) {
         self.sender.send(self.px_state).unwrap();
-        None
+    }
+
+    fn is_finished(&self) -> bool {
+        true
     }
 }
