@@ -46,8 +46,6 @@ pub struct Nscope {
     pub ch3: AnalogInput,
     pub ch4: AnalogInput,
 
-    pub trigger: Trigger,
-
     vid: u16,
     pid: u16,
 
@@ -94,7 +92,6 @@ impl Nscope {
             ch2: AnalogInput::default(),
             ch3: AnalogInput::default(),
             ch4: AnalogInput::default(),
-            trigger: Trigger::default(),
             vid: dev.vendor_id(),
             pid: dev.product_id(),
             fw_version,

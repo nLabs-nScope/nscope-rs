@@ -55,17 +55,16 @@ pub struct RequestHandle {
 pub(super) struct StopRequest {}
 
 impl Nscope {
-    pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32) -> RequestHandle {
+    pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32, trigger: Option<Trigger>) -> RequestHandle {
         let (tx, rx) = mpsc::channel::<Sample>();
         let (stop_send, stop_recv) = mpsc::channel::<()>();
 
         let remaining_samples = Arc::new(RwLock::new(number_of_samples));
-
         let command = Command::RequestData(DataRequest {
             channels: [self.ch1, self.ch2, self.ch3, self.ch4],
             sample_rate_hz,
             remaining_samples: remaining_samples.clone(),
-            trigger: self.trigger,
+            trigger: trigger.unwrap_or(Trigger::default()),
             sender: tx,
             stop_recv,
         });
@@ -111,10 +110,36 @@ impl ScopeCommand for DataRequest {
         }
 
 
-        usb_buf[3..7].copy_from_slice(&samples_between_records.to_le_bytes());
-        usb_buf[7..11].copy_from_slice(&total_samples.to_le_bytes());
-
+        usb_buf[3..=6].copy_from_slice(&samples_between_records.to_le_bytes());
+        usb_buf[7..=10].copy_from_slice(&total_samples.to_le_bytes());
         trace!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
+
+        if self.trigger.is_enabled {
+            usb_buf[11] = (self.trigger.source_channel | (self.trigger.trigger_type.value() << 2)) as u8;
+
+            if !(0..4usize).contains(&self.trigger.source_channel) {
+                return Err("Invalid trigger channel".into());
+            }
+            let trigger_channel = self.channels[self.trigger.source_channel];
+            let trigger_level = trigger_channel.measurement_from_voltage(self.trigger.trigger_level);
+            if !(105..3990).contains(&trigger_level) {
+                return Err("Trigger level is outside operating range of the channel".into());
+            }
+            let trigger_level = trigger_level as u16;
+            usb_buf[11] |= ((trigger_level & 0x000F) << 4) as u8;
+            usb_buf[12] = ((trigger_level & 0x0FF0) >> 4) as u8;
+
+            let trigger_delay: u16 = match num_channels_on {
+                1 => { 4 * self.trigger.trigger_delay_us / samples_between_records }
+                2 => { 2 * self.trigger.trigger_delay_us / samples_between_records }
+                3..=4 => { self.trigger.trigger_delay_us / samples_between_records }
+                _ => { 1 }
+            } as u16;
+            usb_buf[13..=14].copy_from_slice(&trigger_delay.to_le_bytes());
+        } else {
+            usb_buf[11..=14].fill(0);
+        }
+
 
         for (i, ch) in self.channels.iter().enumerate() {
             if ch.is_on {
@@ -157,9 +182,8 @@ impl ScopeCommand for DataRequest {
                         _ => panic!("Unexpected behavior of odd/even bitmask")
                     };
 
-                    let measured_voltage = adc_data as f64 * 3.3 / 4095.0;
-                    trace!("Ch{}: ADCData: {} Vm: {}, Vi: {}", i+1, adc_data, measured_voltage, ch.voltage_from_measurement(measured_voltage));
-                    sample.data[i] = Some(ch.voltage_from_measurement(measured_voltage));
+                    trace!("Ch{}: ADCData: {} Vi: {}", i+1, adc_data, ch.voltage_from_measurement(adc_data));
+                    sample.data[i] = Some(ch.voltage_from_measurement(adc_data));
                     total_parsed_readings += 1;
                 }
             }
@@ -178,6 +202,6 @@ impl ScopeCommand for StopRequest {
         usb_buf[1] = 0x05;
         Ok(())
     }
-    fn handle_rx(&self, _usb_buf: &[u8; 64]) { }
+    fn handle_rx(&self, _usb_buf: &[u8; 64]) {}
     fn is_finished(&self) -> bool { true }
 }

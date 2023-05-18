@@ -83,14 +83,30 @@ impl super::AnalogInput {
 //  │                                                                                            │
 //  │   Vi = (385.44/125.44)(5k/(Rg+5k))Vm + (Rg/(Rg+5k))(385.44/125.44)Vl - (196/125.44)3.3     │
 //  └────────────────────────────────────────────────────────────────────────────────────────────┘
-//
+
 impl super::AnalogInput {
-    pub fn voltage_from_measurement(&self, measured_voltage: f64) -> f64 {
+    pub fn measurement_from_voltage(&self, voltage: f64) -> i16 {
+        let a = (self.gain_resistance() + 5000.0) / 5000.0;
+        let b = 125.44 / 385.44;
+        let c = 196.0 / 385.44;
+        let d =  self.gain_resistance() / 5000.0;
+
+        let adc_voltage = a * b * voltage + a * c * 3.3 - d * self.offset_voltage();
+
+        (adc_voltage * 4095.0 / 3.3) as i16
+    }
+}
+
+impl super::AnalogInput {
+    pub fn voltage_from_measurement(&self, adc_data: u16) -> f64 {
+
+        let adc_voltage = adc_data as f64 * 3.3 / 4095.0;
+
         let a = 385.44 / 125.44;
         let b = 5000.0 / (self.gain_resistance() + 5000.0);
         let c = 196.0 / 125.44;
 
-        a * b * measured_voltage + (1.0 - b) * a * self.offset_voltage() - c * 3.3
+        a * b * adc_voltage + (1.0 - b) * a * self.offset_voltage() - c * 3.3
     }
 }
 
