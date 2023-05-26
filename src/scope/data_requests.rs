@@ -38,7 +38,7 @@ impl Sample {
 pub(super) struct DataRequest {
     pub channels: [AnalogInput; 4],
     pub sample_rate_hz: f64,
-    pub remaining_samples: Arc<RwLock<u32>>,
+    pub remaining_samples: Arc<RwLock<usize>>,
     pub trigger: Trigger,
     pub sender: Sender<Sample>,
     pub stop_recv: Receiver<()>,
@@ -47,7 +47,7 @@ pub(super) struct DataRequest {
 #[derive(Debug)]
 pub struct RequestHandle {
     pub receiver: Receiver<Sample>,
-    samples_remaining: Arc<RwLock<u32>>,
+    samples_remaining: Arc<RwLock<usize>>,
     stop_send: Sender<()>,
 }
 
@@ -55,7 +55,7 @@ pub struct RequestHandle {
 pub(super) struct StopRequest {}
 
 impl Nscope {
-    pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32, trigger: Option<Trigger>) -> RequestHandle {
+    pub fn request(&self, sample_rate_hz: f64, number_of_samples: usize, trigger: Option<Trigger>) -> RequestHandle {
         let (tx, rx) = mpsc::channel::<Sample>();
         let (stop_send, stop_recv) = mpsc::channel::<()>();
 
@@ -80,7 +80,7 @@ impl Nscope {
 }
 
 impl RequestHandle {
-    pub fn remaining_samples(&self) -> u32 {
+    pub fn remaining_samples(&self) -> usize {
         *self.samples_remaining.read().unwrap()
     }
 
@@ -105,7 +105,7 @@ impl ScopeCommand for DataRequest {
         };
 
         let total_samples = *self.remaining_samples.read().unwrap();
-        if samples_between_records < 250 && total_samples * num_channels_on as u32 > 3200 {
+        if samples_between_records < 250 && total_samples * num_channels_on > 3200 {
             return Err("Data not recordable".into());
         }
 
@@ -155,7 +155,7 @@ impl ScopeCommand for DataRequest {
     }
 
     fn handle_rx(&self, usb_buf: &[u8; 64]) {
-        let number_received_samples = usb_buf[3] as u32;
+        let number_received_samples = usb_buf[3] as usize;
 
         {
             let mut remaining_samples = self.remaining_samples.write().unwrap();
