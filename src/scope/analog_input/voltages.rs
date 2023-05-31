@@ -85,7 +85,7 @@ impl super::AnalogInput {
 //  └────────────────────────────────────────────────────────────────────────────────────────────┘
 
 impl super::AnalogInput {
-    pub fn measurement_from_voltage(&self, voltage: f64) -> i16 {
+    pub(crate) fn measurement_from_voltage(&self, voltage: f64) -> i16 {
         let a = (self.gain_resistance() + 5000.0) / 5000.0;
         let b = 125.44 / 385.44;
         let c = 196.0 / 385.44;
@@ -98,7 +98,7 @@ impl super::AnalogInput {
 }
 
 impl super::AnalogInput {
-    pub fn voltage_from_measurement(&self, adc_data: u16) -> f64 {
+    pub(crate) fn voltage_from_measurement(&self, adc_data: u16) -> f64 {
 
         let adc_voltage = adc_data as f64 * 3.3 / 4095.0;
 
