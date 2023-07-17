@@ -26,17 +26,14 @@ pub(super) trait ScopeCommand {
     fn is_finished(&self) -> bool;
 }
 
-// Check out initialization
-// INITIALIZATION_WITHOUT_POWER = 0x06, -- tbd
-// INITIALIZATION_WITH_POWER = 0x07, -- tbd
-
-// Build scope interface
-// SCOPE_SWEEP_REQUEST = 0x08, -- next up
-
 // Build out featureset
 // PWM_DUTY_REQUEST = 0x00, -- not for 1.0
 // FINITE_DATA_REQUEST = 0x03, -- not for 1.0
+// CONTINUOUS_DATA_REQUEST = 0x04 -- not for 1.0
+// SCOPE_ROLL_REQUEST = 0x09 -- not for 1.0
 // RESET_TO_BOOTLOADER = 0x10 -- not for 1.0
+// INITIALIZATION_WITHOUT_POWER = 0x06, -- tbd
+// INITIALIZATION_WITH_POWER = 0x07, -- tbd
 
 
 #[derive(Debug)]

@@ -70,17 +70,23 @@ pub struct AnalogOutput {
 
 impl AnalogOutput {
     pub(super) fn create(cmd_tx: Sender<Command>, ax_channel: usize) -> Self {
-        AnalogOutput {
+
+        let default_state = AnalogOutputState {
+            is_on: false,
+            frequency: 1.0,
+            amplitude: 1.0,
+            wave_type: AnalogWaveType::Sine,
+            polarity: AnalogSignalPolarity::Unipolar,
+        };
+
+        let ax = AnalogOutput {
             command_tx: cmd_tx,
             channel: ax_channel,
-            state: RwLock::new(AnalogOutputState {
-                is_on: false,
-                frequency: 1.0,
-                amplitude: 1.0,
-                wave_type: AnalogWaveType::Sine,
-                polarity: AnalogSignalPolarity::Unipolar,
-            }),
-        }
+            state: RwLock::new(default_state),
+        };
+
+        ax.set(default_state);
+        ax
     }
 
     fn set(&self, ax_state: AnalogOutputState) {
