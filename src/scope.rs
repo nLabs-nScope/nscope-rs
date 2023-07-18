@@ -147,7 +147,7 @@ impl Nscope {
                 // 2. increment the request id
                 // 3. send the
                 // 3. store whatever we want to send back
-
+                outgoing_usb_buffer.fill(0);
                 let result = command.fill_tx_buffer(&mut outgoing_usb_buffer);
                 if result.is_err() {
                     eprintln!("{:?}", result);
