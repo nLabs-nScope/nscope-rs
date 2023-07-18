@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let bench = LabBench::new()?;
 
     // Open the first available nScope
-    let nscope = bench.open_first_available()?;
+    let nscope = bench.open_first_available(true)?;
 
     nscope.a1.turn_on();
 

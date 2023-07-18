@@ -63,7 +63,7 @@ impl fmt::Debug for Nscope {
 
 impl Nscope {
     /// Create a new Nscope object
-    pub(crate) fn new(dev: &DeviceInfo, hid_api: &HidApi) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(dev: &DeviceInfo, hid_api: &HidApi, power_on: bool) -> Result<Self, Box<dyn Error>> {
         // Open the hid_device
         let hid_device = dev.open_device(hid_api)?;
 
@@ -100,6 +100,8 @@ impl Nscope {
             join_handle,
         };
 
+        // Send the initialization command
+        let _ = scope.command_tx.send(Command::Initialize(power_on));
         Ok(scope)
     }
 

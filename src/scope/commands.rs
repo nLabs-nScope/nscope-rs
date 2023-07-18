@@ -32,13 +32,12 @@ pub(super) trait ScopeCommand {
 // CONTINUOUS_DATA_REQUEST = 0x04 -- not for 1.0
 // SCOPE_ROLL_REQUEST = 0x09 -- not for 1.0
 // RESET_TO_BOOTLOADER = 0x10 -- not for 1.0
-// INITIALIZATION_WITHOUT_POWER = 0x06, -- tbd
-// INITIALIZATION_WITH_POWER = 0x07, -- tbd
 
 
 #[derive(Debug)]
 pub(super) enum Command {
     Quit,
+    Initialize(bool),
     SetAnalogOutput(AxRequest),
     SetPulseOutput(PxRequest),
     RequestData(DataRequest),
@@ -50,6 +49,14 @@ impl Command {
         debug!("Processed command: {:?}", self);
         match self {
             Command::Quit => { Ok(()) }
+            Command::Initialize(power_on) => {
+                if *power_on {
+                    usb_buf[1] = 0x07;
+                } else {
+                    usb_buf[1] = 0x06;
+                }
+                Ok(())
+            }
             Command::SetAnalogOutput(cmd) => { cmd.fill_tx_buffer(usb_buf) }
             Command::SetPulseOutput(cmd) => { cmd.fill_tx_buffer(usb_buf) }
             Command::RequestData(cmd) => { cmd.fill_tx_buffer(usb_buf) }
@@ -60,6 +67,7 @@ impl Command {
     pub(super) fn handle_rx(&self, buffer: &[u8; 64]) {
         match self {
             Command::Quit => {}
+            Command::Initialize(_) =>  {}
             Command::SetAnalogOutput(cmd) => { cmd.handle_rx(buffer) }
             Command::SetPulseOutput(cmd) => { cmd.handle_rx(buffer) }
             Command::RequestData(cmd) => { cmd.handle_rx(buffer) }
@@ -70,6 +78,7 @@ impl Command {
     pub(super) fn is_finished(&self) -> bool {
         match self {
             Command::Quit => { true }
+            Command::Initialize(_) => { true }
             Command::SetAnalogOutput(cmd) => { cmd.is_finished() }
             Command::SetPulseOutput(cmd) => { cmd.is_finished() }
             Command::RequestData(cmd) => { cmd.is_finished() }
