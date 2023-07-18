@@ -47,7 +47,18 @@
 //  │   G  = 256*(Rg-75)/100k                                      │
 //  └──────────────────────────────────────────────────────────────┘
 //
+
+const DELTA1: f64 = 1.65;
+const DELTA2: f64 = 3.3 / 10.0;
+
+const ALPHA1: f64 = 50.0 / 5000.0;
+const ALPHA2: f64 = 20.0 / 257.0;
+
+const BETA1: f64 = 3.3 * 50.0 / 63.0 / 5000.0;
+const BETA2: f64 = 3.3 * 20.0 / 63.0 / 257.0;
+
 impl super::AnalogInput {
+    #[allow(dead_code)]
     fn set_gain(&mut self, gain_resistance: f64) {
         let desired_gain_setting = 256.0 * (gain_resistance - 75.0) / 100_000.0;
         self.gain_setting = desired_gain_setting as u8;
@@ -55,6 +66,22 @@ impl super::AnalogInput {
 
     fn gain_resistance(&self) -> f64 {
         100_000.0 * self.gain_setting as f64 / 256.0 + 75.0
+    }
+
+    fn set_level_legacy(&mut self, level: f64) {
+        let ch_gain = self.gain_setting as f64;
+        let gain = 1.0 + ALPHA1 + ALPHA2 * ch_gain;
+        if gain < 1.1 {
+            self.offset_setting = 32;
+            return;
+        }
+        let desired_level_setting = (level * DELTA2 * gain + DELTA1 * (gain - 1.0)) / (BETA1 + BETA2 * ch_gain);
+        self.offset_setting = (desired_level_setting + 0.5) as u8
+    }
+
+    fn set_gain_legacy(&mut self, gain: f64) {
+        let desired_gain_setting = (gain - 1.0 - ALPHA1) / ALPHA2;
+        self.gain_setting = desired_gain_setting as u8;
     }
 }
 
@@ -66,6 +93,7 @@ impl super::AnalogInput {
 //  └──────────────────────────────────────────────────────────────┘
 
 impl super::AnalogInput {
+    #[allow(dead_code)]
     fn set_offset(&mut self, offset_voltage: f64) {
         let desired_offset_setting = offset_voltage * 64.0 / 3.3;
         self.offset_setting = desired_offset_setting as u8;
@@ -110,22 +138,12 @@ impl super::AnalogInput {
     }
 
     pub(crate) fn voltage_from_meas_legacy(&self, adc_data: u16) -> f64 {
-        let delta1 = 1.65;
-        let delta2 = 3.3 / 10.0;
-
-        let alpha1 = 50.0 / 5000.0;
-        let alpha2 = 20.0 / 257.0;
-
-        let beta1 = 3.3 * 50.0 / 63.0 / 5000.0;
-        let beta2 = 3.3 * 20.0 / 63.0 / 257.0;
-
-
         let adc_reading = adc_data as f64;
         let ch_gain = self.gain_setting as f64;
         let ch_level = self.offset_setting as f64;
 
-        let gain = 1.0 + alpha1 + alpha2 * ch_gain;
-        let level = (ch_level * (beta1 + beta2 * ch_gain) - delta1 * (gain - 1.0)) / delta2 / gain;
+        let gain = 1.0 + ALPHA1 + ALPHA2 * ch_gain;
+        let level = (ch_level * (BETA1 + BETA2 * ch_gain) - DELTA1 * (gain - 1.0)) / DELTA2 / gain;
 
         10.0 / gain * (adc_reading - 2047.0) / 4095.0 + level
     }
@@ -149,10 +167,16 @@ impl super::AnalogInput {
 
 impl super::AnalogInput {
     pub fn set_range(&mut self, vmin: f64, vmax: f64) {
-        let gain_resistance = 5000.0 * (3.3 * 385.44 / 125.44 / (vmax - vmin) - 1.0);
-        let offset_voltage = (vmin + 196.0 / 125.44 * 3.3) / ((vmin - vmax) / 3.3 + 385.44 / 125.44);
+        // let gain_resistance = 5000.0 * (3.3 * 385.44 / 125.44 / (vmax - vmin) - 1.0);
+        // let offset_voltage = (vmin + 196.0 / 125.44 * 3.3) / ((vmin - vmax) / 3.3 + 385.44 / 125.44);
 
-        self.set_gain(gain_resistance);
-        self.set_offset(offset_voltage);
+        // self.set_gain(gain_resistance);
+        // self.set_offset(offset_voltage);
+
+        let level = (vmax + vmin) / 2.0;
+        let gain = (vmax - vmin) / 10.0;
+
+        self.set_gain_legacy(gain);
+        self.set_level_legacy(level);
     }
 }
