@@ -182,8 +182,8 @@ impl ScopeCommand for DataRequest {
                         _ => panic!("Unexpected behavior of odd/even bitmask")
                     };
 
-                    trace!("Ch{}: ADCData: {} Vi: {}", i+1, adc_data, ch.voltage_from_measurement(adc_data));
-                    sample.data[i] = Some(ch.voltage_from_measurement(adc_data));
+                    trace!("Ch{}: ADCData: {} Vi: {}", i+1, adc_data, ch.voltage_from_meas_legacy(adc_data));
+                    sample.data[i] = Some(ch.voltage_from_meas_legacy(adc_data));
                     total_parsed_readings += 1;
                 }
             }

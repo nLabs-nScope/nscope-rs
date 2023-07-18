@@ -89,7 +89,7 @@ impl super::AnalogInput {
         let a = (self.gain_resistance() + 5000.0) / 5000.0;
         let b = 125.44 / 385.44;
         let c = 196.0 / 385.44;
-        let d =  self.gain_resistance() / 5000.0;
+        let d = self.gain_resistance() / 5000.0;
 
         let adc_voltage = a * b * voltage + a * c * 3.3 - d * self.offset_voltage();
 
@@ -98,8 +98,8 @@ impl super::AnalogInput {
 }
 
 impl super::AnalogInput {
+    #[allow(dead_code)]
     pub(crate) fn voltage_from_measurement(&self, adc_data: u16) -> f64 {
-
         let adc_voltage = adc_data as f64 * 3.3 / 4095.0;
 
         let a = 385.44 / 125.44;
@@ -107,6 +107,27 @@ impl super::AnalogInput {
         let c = 196.0 / 125.44;
 
         a * b * adc_voltage + (1.0 - b) * a * self.offset_voltage() - c * 3.3
+    }
+
+    pub(crate) fn voltage_from_meas_legacy(&self, adc_data: u16) -> f64 {
+        let delta1 = 1.65;
+        let delta2 = 3.3 / 10.0;
+
+        let alpha1 = 50.0 / 5000.0;
+        let alpha2 = 20.0 / 257.0;
+
+        let beta1 = 3.3 * 50.0 / 63.0 / 5000.0;
+        let beta2 = 3.3 * 20.0 / 63.0 / 257.0;
+
+
+        let adc_reading = adc_data as f64;
+        let ch_gain = self.gain_setting as f64;
+        let ch_level = self.offset_setting as f64;
+
+        let gain = 1.0 + alpha1 + alpha2 * ch_gain;
+        let level = (ch_level * (beta1 + beta2 * ch_gain) - delta1 * (gain - 1.0)) / delta2 / gain;
+
+        10.0 / gain * (adc_reading - 2047.0) / 4095.0 + level
     }
 }
 
