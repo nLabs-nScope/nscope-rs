@@ -72,15 +72,21 @@ pub struct PulseOutput {
 
 impl PulseOutput {
     pub(super) fn create(cmd_tx: Sender<Command>, px_channel: usize) -> Self {
-        PulseOutput {
+
+        let default_state = PulseOutputState {
+            is_on: false,
+            frequency: 1.0,
+            duty: 0.5,
+        };
+
+        let px = PulseOutput {
             command_tx: cmd_tx,
             channel: px_channel,
-            state: RwLock::new(PulseOutputState {
-                is_on: false,
-                frequency: 1.0,
-                duty: 0.5,
-            }),
-        }
+            state: RwLock::new(default_state),
+        };
+
+        px.set(default_state);
+        px
     }
 
     fn set(&self, px_state: PulseOutputState) {
