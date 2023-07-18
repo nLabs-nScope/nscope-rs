@@ -49,16 +49,16 @@ impl LabBench {
     }
 
     pub fn open_all_available(&self) -> Vec<Nscope> {
-        self.list().filter_map(|nsl| nsl.open().ok()).collect()
+        self.list().filter_map(|nsl| nsl.open(false).ok()).collect()
     }
 
-    pub fn open_first_available(&self) -> Result<Nscope, io::Error> {
+    pub fn open_first_available(&self, power_on: bool) -> Result<Nscope, io::Error> {
 
         // Default error is that we found zero nScopes
         let mut err = io::Error::new(io::ErrorKind::NotFound, "Cannot find any nScopes");
 
         for nsl in self.list() {
-            if let Ok(nscope) = nsl.open() {
+            if let Ok(nscope) = nsl.open(power_on) {
                 // return the first open nScope
                 return Ok(nscope);
             }
@@ -84,9 +84,9 @@ impl NscopeLink {
         }
     }
 
-    pub fn open(&self) -> Result<Nscope, Box<dyn Error>> {
+    pub fn open(&self, power_on: bool) -> Result<Nscope, Box<dyn Error>> {
         let api = self.hid_api.read().unwrap();
-        Nscope::new(&self.info, &api)
+        Nscope::new(&self.info, &api, power_on)
     }
 }
 
