@@ -121,7 +121,7 @@ impl ScopeCommand for DataRequest {
                 return Err("Invalid trigger channel".into());
             }
             let trigger_channel = self.channels[self.trigger.source_channel];
-            let trigger_level = trigger_channel.measurement_from_voltage(self.trigger.trigger_level);
+            let trigger_level = trigger_channel.measurement_from_voltage_legacy(self.trigger.trigger_level);
             if !(105..3990).contains(&trigger_level) {
                 return Err("Trigger level is outside operating range of the channel".into());
             }
@@ -182,8 +182,8 @@ impl ScopeCommand for DataRequest {
                         _ => panic!("Unexpected behavior of odd/even bitmask")
                     };
 
-                    trace!("Ch{}: ADCData: {} Vi: {}", i+1, adc_data, ch.voltage_from_meas_legacy(adc_data));
-                    sample.data[i] = Some(ch.voltage_from_meas_legacy(adc_data));
+                    trace!("Ch{}: ADCData: {} Vi: {}", i+1, adc_data, ch.voltage_from_measurement_legacy(adc_data));
+                    sample.data[i] = Some(ch.voltage_from_measurement_legacy(adc_data));
                     total_parsed_readings += 1;
                 }
             }
