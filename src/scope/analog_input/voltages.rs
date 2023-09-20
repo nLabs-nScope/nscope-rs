@@ -83,6 +83,13 @@ impl super::AnalogInput {
         let desired_gain_setting = (gain - 1.0 - ALPHA1) / ALPHA2;
         self.gain_setting = desired_gain_setting as u8;
     }
+
+    pub fn gain(&self) -> f64 {
+        if self.gain_setting == 0 {
+            return 1.0;
+        }
+        self.gain_setting as f64 * ALPHA2 + ALPHA1 + 1.0
+    }
 }
 
 //  ┌──────────────────────────────────────────────────────────────┐
@@ -185,7 +192,7 @@ impl super::AnalogInput {
         // self.set_offset(offset_voltage);
 
         let level = (vmax + vmin) / 2.0;
-        let gain = (vmax - vmin) / 10.0;
+        let gain =  10.0 / (vmax - vmin);
 
         self.set_gain_legacy(gain);
         self.set_level_legacy(level);
