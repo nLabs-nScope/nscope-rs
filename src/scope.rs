@@ -34,7 +34,8 @@ pub mod trigger;
 pub mod power;
 pub mod data_requests;
 
-/// Object for accessing an nScope
+/// Primary interface to the nScope, used to set outputs,
+/// trigger sweeps of input data on scope channels, and monitor power state
 pub struct Nscope {
     pub a1: AnalogOutput,
     pub a2: AnalogOutput,
@@ -46,9 +47,6 @@ pub struct Nscope {
     pub ch3: AnalogInput,
     pub ch4: AnalogInput,
 
-    vid: u16,
-    pid: u16,
-
     fw_version: Arc<RwLock<Option<u8>>>,
     power_status: Arc<RwLock<PowerStatus>>,
     command_tx: Sender<Command>,
@@ -57,7 +55,7 @@ pub struct Nscope {
 
 impl fmt::Debug for Nscope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "VID: 0x{:04X}, PID: 0x{:04X}", self.vid, self.pid, )
+        write!(f, "nScope v1 [ connected: {} ]", self.is_connected())
     }
 }
 
@@ -92,8 +90,6 @@ impl Nscope {
             ch2: AnalogInput::default(),
             ch3: AnalogInput::default(),
             ch4: AnalogInput::default(),
-            vid: dev.vendor_id(),
-            pid: dev.product_id(),
             fw_version,
             power_status,
             command_tx,
@@ -126,7 +122,7 @@ impl Nscope {
                     // we get the active request
                     if let Ok(()) = rq.stop_recv.try_recv() {
                         // We have recieved a stop signal
-                        command_tx.send(Command::StopData(StopRequest{})).unwrap();
+                        command_tx.send(Command::StopData(StopRequest {})).unwrap();
                     }
                 }
             }
@@ -170,7 +166,6 @@ impl Nscope {
                 }
                 active_requests_map.insert(request_id, command);
                 trace!("Sent request {}", request_id);
-
             } else if hid_device.write(&commands::NULL_REQ).is_err() {
                 eprintln!("USB write error, ending nScope connection");
                 break 'communication;
@@ -227,11 +222,20 @@ impl Nscope {
         }
     }
 
-    // Todo: come up with a better way of determining this
     pub fn is_connected(&self) -> bool {
-        Arc::strong_count(&self.fw_version) > 1
+        match &self.join_handle {
+            Some(handle) => !handle.is_finished(),
+            None => false,
+        }
     }
 
+    pub fn close(&mut self) {
+        let _ = self.command_tx.send(Command::Quit);
+        // Wait for the loop to end
+        if self.join_handle.is_some() {
+            self.join_handle.take().unwrap().join().unwrap()
+        }
+    }
 
     pub fn fw_version(&self) -> Result<u8, Box<dyn Error>> {
         self.fw_version.read().unwrap().ok_or_else(|| "Cannot read FW version".into())

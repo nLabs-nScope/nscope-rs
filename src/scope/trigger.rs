@@ -8,12 +8,14 @@
  *
  **************************************************************************************************/
 
+/// Different trigger types used to start a data sweep
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum TriggerType {
     RisingEdge,
     FallingEdge,
 }
 
+/// A representation of a trigger used to start a data sweep
 #[derive(Debug, Copy, Clone)]
 pub struct Trigger {
     pub is_enabled: bool,
@@ -38,8 +40,8 @@ impl Default for Trigger {
 impl TriggerType {
     pub(crate) fn value(&self) -> usize {
         match self {
-            TriggerType::RisingEdge => { 2 },
-            TriggerType::FallingEdge => { 1 },
+            TriggerType::RisingEdge => { 2 }
+            TriggerType::FallingEdge => { 1 }
         }
     }
 }

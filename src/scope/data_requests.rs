@@ -20,6 +20,7 @@ use super::commands::ScopeCommand;
 use super::Nscope;
 use super::Trigger;
 
+/// Voltage information from all open channels at a given time
 #[derive(Debug, Default, Clone)]
 pub struct Sample {
     pub time_since_start: f64,
@@ -44,8 +45,9 @@ pub(super) struct DataRequest {
     pub stop_recv: Receiver<()>,
 }
 
+/// Handle to an ongoing data sweep, holds received data from nScope
 #[derive(Debug)]
-pub struct RequestHandle {
+pub struct SweepHandle {
     pub receiver: Receiver<Sample>,
     samples_remaining: Arc<RwLock<u32>>,
     stop_send: Sender<()>,
@@ -55,7 +57,7 @@ pub struct RequestHandle {
 pub(super) struct StopRequest {}
 
 impl Nscope {
-    pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32, trigger: Option<Trigger>) -> RequestHandle {
+    pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32, trigger: Option<Trigger>) -> SweepHandle {
         let (tx, rx) = mpsc::channel::<Sample>();
         let (stop_send, stop_recv) = mpsc::channel::<()>();
 
@@ -64,14 +66,14 @@ impl Nscope {
             channels: [self.ch1, self.ch2, self.ch3, self.ch4],
             sample_rate_hz,
             remaining_samples: remaining_samples.clone(),
-            trigger: trigger.unwrap_or(Trigger::default()),
+            trigger: trigger.unwrap_or_default(),
             sender: tx,
             stop_recv,
         });
 
         self.command_tx.send(command).unwrap();
 
-        RequestHandle {
+        SweepHandle {
             receiver: rx,
             samples_remaining: remaining_samples,
             stop_send,
@@ -79,7 +81,7 @@ impl Nscope {
     }
 }
 
-impl RequestHandle {
+impl SweepHandle {
     pub fn remaining_samples(&self) -> u32 {
         *self.samples_remaining.read().unwrap()
     }

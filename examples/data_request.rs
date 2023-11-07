@@ -22,16 +22,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     nscope.a1.turn_on();
 
-    let rq = nscope.request(4.0,20, None);
+    let sweep_handle = nscope.request(4.0, 20, None);
 
-    for sample in rq.receiver {
+    for sample in sweep_handle.receiver {
         println!("{:?}", sample.data);
     }
 
     nscope.a1.turn_off();
     
     
-    let rq = nscope.request(4.0, 20, Some(Trigger{
+    let sweep_handle = nscope.request(4.0, 20, Some(Trigger{
         is_enabled: true,
         trigger_type: TriggerType::RisingEdge,
         source_channel: 0,
@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     nscope.a1.set_polarity(AnalogSignalPolarity::Bipolar);
     nscope.a1.turn_on();
-    for sample in rq.receiver {
+    for sample in sweep_handle.receiver {
         println!("{:?}", sample.data);
     }
 

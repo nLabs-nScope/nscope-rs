@@ -15,18 +15,23 @@ use std::{fmt, io};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 
+/// A representation of all the nScopes plugged into a computer
 pub struct LabBench {
     hid_devices: Vec<DeviceInfo>,
     hid_api: Arc<RwLock<HidApi>>,
 }
 
+/// A detected link between the computer and an nScope, used to open and retrieve an nScope
 pub struct NscopeLink {
     available: bool,
     info: DeviceInfo,
     hid_api: Arc<RwLock<HidApi>>,
 }
 
+
 impl LabBench {
+
+    /// Creates a new lab bench, searching the computer for nScope links
     pub fn new() -> Result<LabBench, Box<dyn Error>> {
         let hid_api = HidApi::new()?;
         Ok(LabBench {
@@ -35,23 +40,26 @@ impl LabBench {
         })
     }
 
+    /// Refreshes the list of nScope Links
     pub fn refresh(&mut self) {
         let mut api = self.hid_api.write().unwrap();
         api.refresh_devices().expect("failed to refresh");
         self.hid_devices = api.device_list().cloned().collect();
     }
 
-    /// Returns iterator containing information about attached nScopes
+    /// Returns iterator containing information about detected nScopes plugged into the computer
     pub fn list(&self) -> impl Iterator<Item=NscopeLink> + '_ {
         self.hid_devices
             .iter()
             .filter_map(move |d| NscopeLink::new(d.clone(), Arc::clone(&self.hid_api)))
     }
 
+    /// Returns a vector containing all nScopes that are available
     pub fn open_all_available(&self) -> Vec<Nscope> {
         self.list().filter_map(|nsl| nsl.open(false).ok()).collect()
     }
 
+    /// Returns the first available nScope
     pub fn open_first_available(&self, power_on: bool) -> Result<Nscope, io::Error> {
 
         // Default error is that we found zero nScopes
@@ -84,6 +92,7 @@ impl NscopeLink {
         }
     }
 
+    /// Opens and returns the nScope at the link
     pub fn open(&self, power_on: bool) -> Result<Nscope, Box<dyn Error>> {
         let api = self.hid_api.read().unwrap();
         Nscope::new(&self.info, &api, power_on)
@@ -104,9 +113,7 @@ impl fmt::Debug for NscopeLink {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "VID: 0x{:04X}, PID: 0x{:04X}, Available: {}",
-            self.info.vendor_id(),
-            self.info.product_id(),
+            "Link to nScope v1 [ available: {} ]",
             self.available
         )
     }
