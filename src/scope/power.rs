@@ -11,7 +11,7 @@
 use std::io;
 use super::Nscope;
 
-/// Storage class for the nScope power status
+/// Information about the power supply status of nScope
 #[derive(Debug, Copy, Clone)]
 pub struct PowerStatus {
     pub state: PowerState,
@@ -27,6 +27,7 @@ impl Default for PowerStatus {
     }
 }
 
+/// Possible states of the nScope power supply
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PowerState {
     PowerOff,

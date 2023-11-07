@@ -42,8 +42,6 @@ impl PulsePreScale {
     }
 }
 
-
-/// Interface to a pulse output
 #[derive(Debug, Copy, Clone)]
 struct PulseOutputState {
     pub is_on: bool,
@@ -62,6 +60,7 @@ impl PulseOutputState {
     }
 }
 
+/// Interface to a pulse output channel
 #[derive(Debug)]
 pub struct PulseOutput {
     pub channel: usize,
@@ -72,7 +71,6 @@ pub struct PulseOutput {
 
 impl PulseOutput {
     pub(super) fn create(cmd_tx: Sender<Command>, px_channel: usize) -> Self {
-
         let default_state = PulseOutputState {
             is_on: false,
             frequency: 1.0,

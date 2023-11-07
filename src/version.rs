@@ -11,6 +11,7 @@
 use git_version::git_version;
 use regex::Regex;
 
+/// Returns the current version of the nScope API
 pub fn version() -> String {
     let git_description = git_version!(
         args = ["--always", "--tags", "--dirty"],

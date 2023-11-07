@@ -10,6 +10,7 @@
 
 mod voltages;
 
+/// Interface to a single scope channel
 #[derive(Debug, Copy, Clone)]
 pub struct AnalogInput {
     pub(crate) is_on: bool,

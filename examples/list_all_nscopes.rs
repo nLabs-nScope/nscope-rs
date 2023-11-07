@@ -17,12 +17,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create a LabBench
     let bench = LabBench::new()?;
 
-    // Print the bench to show a list of connected nScopes
+    // Print the bench to show a list of detected nScopes
     println!("{:?}", bench);
 
     // Or loop over all nScope links in the list and print them
-    for nsl in bench.list() {
-        println!("{:?}", nsl)
+    for nscope_link in bench.list() {
+        println!("{:?}", nscope_link)
     }
     Ok(())
 }

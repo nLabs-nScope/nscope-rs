@@ -17,6 +17,7 @@ use crate::scope::commands::ScopeCommand;
 
 use super::commands::Command;
 
+/// Possible analog output signal types
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AnalogWaveType {
     Sine = 0,
@@ -34,6 +35,7 @@ impl FromStr for AnalogWaveType {
     }
 }
 
+/// Possible analog output polarities
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AnalogSignalPolarity {
     Unipolar,
@@ -61,6 +63,7 @@ struct AnalogOutputState {
     polarity: AnalogSignalPolarity,
 }
 
+/// Interface to an analog output channel
 #[derive(Debug)]
 pub struct AnalogOutput {
     pub channel: usize,
