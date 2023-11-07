@@ -66,7 +66,7 @@ impl Nscope {
             channels: [self.ch1, self.ch2, self.ch3, self.ch4],
             sample_rate_hz,
             remaining_samples: remaining_samples.clone(),
-            trigger: trigger.unwrap_or(Trigger::default()),
+            trigger: trigger.unwrap_or_default(),
             sender: tx,
             stop_recv,
         });
