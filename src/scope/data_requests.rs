@@ -36,7 +36,7 @@ impl Sample {
 }
 
 #[derive(Debug)]
-pub(super) struct DataRequest {
+pub(crate) struct DataRequest {
     pub channels: [AnalogInput; 4],
     pub sample_rate_hz: f64,
     pub remaining_samples: Arc<RwLock<u32>>,
@@ -54,7 +54,7 @@ pub struct SweepHandle {
 }
 
 #[derive(Debug)]
-pub(super) struct StopRequest {}
+pub(crate) struct StopRequest {}
 
 impl Nscope {
     pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32, trigger: Option<Trigger>) -> SweepHandle {

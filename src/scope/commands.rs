@@ -35,7 +35,7 @@ pub(super) trait ScopeCommand {
 
 
 #[derive(Debug)]
-pub(super) enum Command {
+pub(crate) enum Command {
     Quit,
     Initialize(bool),
     SetAnalogOutput(AxRequest),

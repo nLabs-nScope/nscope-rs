@@ -168,7 +168,7 @@ impl AnalogOutput {
 
 
 #[derive(Debug)]
-pub(super) struct AxRequest {
+pub(crate) struct AxRequest {
     channel: usize,
     ax_state: AnalogOutputState,
     sender: Sender<AnalogOutputState>,

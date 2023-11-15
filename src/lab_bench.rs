@@ -13,7 +13,7 @@ use std::{fmt, io};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 
-enum NscopeDevice {
+pub(crate) enum NscopeDevice {
     HidApiDevice { info: hidapi::DeviceInfo, api: Arc<RwLock<hidapi::HidApi>> },
     RusbDevice(rusb::Device<rusb::GlobalContext>),
 }
@@ -82,6 +82,7 @@ impl LabBench {
         // Default error is that we found zero nScopes
         let mut err = io::Error::new(io::ErrorKind::NotFound, "Cannot find any nScopes");
 
+
         for nsl in self.list() {
             if let Ok(nscope) = nsl.open(power_on) {
                 // return the first open nScope
@@ -125,15 +126,7 @@ impl NscopeLink {
 
     /// Opens and returns the nScope at the link
     pub fn open(&self, power_on: bool) -> Result<Nscope, Box<dyn Error>> {
-        match &self.device {
-            NscopeDevice::HidApiDevice { info, api } => {
-                let api = api.read().unwrap();
-                return Nscope::new(info, &api, power_on);
-            }
-            NscopeDevice::RusbDevice(_) => {}
-        };
-
-        Err("Cannot find valid information to open nScope".into())
+        Nscope::new(&self.device, power_on)
     }
 }
 

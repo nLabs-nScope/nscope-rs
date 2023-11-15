@@ -20,9 +20,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Print the bench to show a list of detected nScopes
     println!("{:?}", bench);
 
-    // Or loop over all nScope links in the list and print them
-    for nscope_link in bench.list() {
-        println!("{:?}", nscope_link)
+    {
+        let mut foo = bench.open_first_available(false).unwrap();
+        println!("{:?}", bench);
+
+        {
+            let mut foo2 = bench.open_first_available(false).unwrap();
+            println!("{:?}", bench);
+            foo2.close();
+        }
+
+        println!("{:?}", bench);
+        foo.close();
     }
+
+    println!("{:?}", bench);
+
+    // // Or loop over all nScope links in the list and print them
+    // for nscope_link in bench.list() {
+    //     println!("{:?}", nscope_link)
+    // }
     Ok(())
 }

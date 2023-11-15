@@ -175,7 +175,7 @@ fn get_registers(pulse_output: &PulseOutputState) -> Result<(u8, u32, u32), Box<
 }
 
 #[derive(Debug)]
-pub(super) struct PxRequest {
+pub(crate) struct PxRequest {
     channel: usize,
     px_state: PulseOutputState,
     sender: Sender<PulseOutputState>,
