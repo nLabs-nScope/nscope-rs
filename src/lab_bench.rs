@@ -13,21 +13,22 @@ use std::{fmt, io};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 
-type RusbDevice = rusb::Device<rusb::GlobalContext>;
-type HidApiDevice = (hidapi::DeviceInfo, Arc<RwLock<hidapi::HidApi>>);
+enum NscopeDevice {
+    HidApiDevice { info: hidapi::DeviceInfo, api: Arc<RwLock<hidapi::HidApi>> },
+    RusbDevice(rusb::Device<rusb::GlobalContext>),
+}
 
 /// A representation of all the nScopes plugged into a computer
 pub struct LabBench {
     hid_api: Arc<RwLock<hidapi::HidApi>>,
     hid_devices: Vec<hidapi::DeviceInfo>,
-    rusb_devices: Vec<RusbDevice>,
+    rusb_devices: Vec<rusb::Device<rusb::GlobalContext>>,
 }
 
 /// A detected link between the computer and an nScope, used to open and retrieve an nScope
 pub struct NscopeLink {
     available: bool,
-    hid_info: Option<HidApiDevice>,
-    rusb_info: Option<RusbDevice>,
+    device: NscopeDevice,
 }
 
 
@@ -52,25 +53,22 @@ impl LabBench {
 
     /// Returns iterator containing information about detected nScopes plugged into the computer
     pub fn list(&self) -> impl Iterator<Item=NscopeLink> + '_ {
-        let v1_iterator = self.hid_devices
+        let v1_nscopes = self.hid_devices
             .iter()
-            .filter_map(
-                move |d| NscopeLink::new(
-                    Some( (d.clone(), Arc::clone(&self.hid_api))),
-                    None
-                )
-            );
+            .filter_map(move |d| NscopeLink::new(
+                NscopeDevice::HidApiDevice {
+                    info: d.clone(),
+                    api: Arc::clone(&self.hid_api),
+                }
+            ));
 
-        let v2_iterator = self.rusb_devices
+        let v2_nscopes = self.rusb_devices
             .iter()
-            .filter_map(move |d|
-                NscopeLink::new(
-                    None,
-                    Some(d.clone())
-                )
-            );
+            .filter_map(move |d| NscopeLink::new(
+                NscopeDevice::RusbDevice(d.clone())
+            ));
 
-        v1_iterator.chain(v2_iterator)
+        v1_nscopes.chain(v2_nscopes)
     }
 
     /// Returns a vector containing all nScopes that are available
@@ -97,43 +95,43 @@ impl LabBench {
 }
 
 impl NscopeLink {
-    fn new(hid_info: Option<HidApiDevice>, rusb_info: Option<RusbDevice>) -> Option<Self> {
-        if let Some((hid_device, hid_api)) = hid_info {
-            if hid_device.vendor_id() == 0x04D8 && hid_device.product_id() == 0xF3F6 {
-                let api = hid_api.read().ok()?;
-                let available = hid_device.open_device(&api).is_ok();
-                return Some(NscopeLink {
-                    available,
-                    hid_info: Some((hid_device, Arc::clone(&hid_api))),
-                    rusb_info: None,
-                });
-            }
-            return None;
-        }
-
-        if let Some(device) = rusb_info {
-            if let Ok(device_desc) = device.device_descriptor() {
-                if device_desc.vendor_id() == 0xCAFE && device_desc.product_id() == 0x1234 {
-                    let available = device.open().is_ok();
-                    return Some (NscopeLink {
+    fn new(device: NscopeDevice) -> Option<Self> {
+        match device {
+            NscopeDevice::HidApiDevice { info, api } => {
+                if info.vendor_id() == 0x04D8 && info.product_id() == 0xF3F6 {
+                    let hid_api = api.read().ok()?;
+                    let available = info.open_device(&hid_api).is_ok();
+                    return Some(NscopeLink {
                         available,
-                        hid_info: None,
-                        rusb_info: Some(device)
-                    })
+                        device: NscopeDevice::HidApiDevice { info: info.clone(), api: Arc::clone(&api) },
+                    });
                 }
+                None
             }
-            return None;
+            NscopeDevice::RusbDevice(device) => {
+                if let Ok(device_desc) = device.device_descriptor() {
+                    if device_desc.vendor_id() == 0xCAFE && device_desc.product_id() == 0x1234 {
+                        let available = device.open().is_ok();
+                        return Some(NscopeLink {
+                            available,
+                            device: NscopeDevice::RusbDevice(device),
+                        });
+                    }
+                }
+                None
+            }
         }
-
-        None
     }
 
     /// Opens and returns the nScope at the link
     pub fn open(&self, power_on: bool) -> Result<Nscope, Box<dyn Error>> {
-        if let Some((hid_device, hid_api)) = &self.hid_info {
-            let api = hid_api.read().unwrap();
-            return Nscope::new(hid_device, &api, power_on);
-        }
+        match &self.device {
+            NscopeDevice::HidApiDevice { info, api } => {
+                let api = api.read().unwrap();
+                return Nscope::new(info, &api, power_on);
+            }
+            NscopeDevice::RusbDevice(_) => {}
+        };
 
         Err("Cannot find valid information to open nScope".into())
     }
@@ -151,21 +149,15 @@ impl fmt::Debug for LabBench {
 
 impl fmt::Debug for NscopeLink {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
-        if self.hid_info.is_some() {
-            return write!(
-                f,
-                "Link to nScope v1 [ available: {} ]",
-                self.available
-            )
-        }
-        if self.rusb_info.is_some() {
-            return write!(
-                f,
-                "Link to nScope v2 [ available: {} ]",
-                self.available
-            )
-        }
-        write!(f, "Invalid nScope")
+        let device_name = match &self.device {
+            NscopeDevice::HidApiDevice { .. } => { "nScope v1" }
+            NscopeDevice::RusbDevice(_) => { "nScope v2" }
+        };
+        write!(
+            f,
+            "Link to {} [ available: {} ]",
+            device_name,
+            self.available
+        )
     }
 }
