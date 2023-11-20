@@ -73,7 +73,6 @@ pub struct AnalogOutput {
 
 impl AnalogOutput {
     pub(super) fn create(cmd_tx: Sender<Command>, ax_channel: usize) -> Self {
-
         let default_state = AnalogOutputState {
             is_on: false,
             frequency: 1.0,
@@ -175,7 +174,7 @@ pub(crate) struct AxRequest {
 }
 
 impl ScopeCommand for AxRequest {
-    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
+    fn fill_tx_buffer_v1(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
         usb_buf[1] = 0x02;
 
         let i_ch = 3 + 10 * self.channel;
@@ -219,7 +218,16 @@ impl ScopeCommand for AxRequest {
         Ok(())
     }
 
-    fn handle_rx(&self, _usb_buf: &[u8; 64]) {
+    fn fill_tx_buffer_v2(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+        // todo!()
+        Ok(())
+    }
+
+    fn handle_rx_v1(&self, _usb_buf: &[u8; 64]) {
+        self.sender.send(self.ax_state).unwrap();
+    }
+
+    fn handle_rx_v2(&self, _usb_buf: &[u8; 64]) {
         self.sender.send(self.ax_state).unwrap();
     }
 

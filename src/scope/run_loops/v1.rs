@@ -4,7 +4,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use hidapi::HidDevice;
 use log::{error, trace};
 use crate::PowerStatus;
-use crate::scope::{commands, StatusResponse};
+use crate::scope::{commands, StatusResponseLegacy};
 use crate::scope::commands::Command;
 use crate::scope::data_requests::StopRequest;
 
@@ -54,7 +54,7 @@ impl crate::Nscope {
                 // 3. send the
                 // 3. store whatever we want to send back
                 outgoing_usb_buffer.fill(0);
-                let result = command.fill_tx_buffer(&mut outgoing_usb_buffer);
+                let result = command.fill_tx_buffer_v1(&mut outgoing_usb_buffer);
                 if result.is_err() {
                     eprintln!("{:?}", result);
                 }
@@ -87,7 +87,7 @@ impl crate::Nscope {
                 break 'communication;
             }
 
-            let response = StatusResponse::new(&incoming_usb_buffer);
+            let response = StatusResponseLegacy::new(&incoming_usb_buffer);
 
             *fw_version.write().unwrap() = Some(response.fw_version);
             power_status.write().unwrap().state = response.power_state;
@@ -100,7 +100,7 @@ impl crate::Nscope {
                 if let Some(command) = active_requests_map.get(&response.request_id)
                 {
                     // Handle the incoming usb packet
-                    command.handle_rx(&incoming_usb_buffer);
+                    command.handle_rx_v1(&incoming_usb_buffer);
 
                     // If the command has finished it's work
                     if command.is_finished() {

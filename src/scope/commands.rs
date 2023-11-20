@@ -21,8 +21,10 @@ use super::pulse_output::PxRequest;
 pub(super) const NULL_REQ: [u8; 2] = [0, 0xFF];
 
 pub(super) trait ScopeCommand {
-    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>>;
-    fn handle_rx(&self, usb_buf: &[u8; 64]);
+    fn fill_tx_buffer_v1(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>>;
+    fn fill_tx_buffer_v2(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>>;
+    fn handle_rx_v1(&self, usb_buf: &[u8; 64]);
+    fn handle_rx_v2(&self, usb_buf: &[u8; 64]);
     fn is_finished(&self) -> bool;
 }
 
@@ -45,7 +47,7 @@ pub(crate) enum Command {
 }
 
 impl Command {
-    pub(super) fn fill_tx_buffer(&mut self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
+    pub(super) fn fill_tx_buffer_v1(&mut self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
         debug!("Processed command: {:?}", self);
         match self {
             Command::Quit => { Ok(()) }
@@ -57,21 +59,32 @@ impl Command {
                 }
                 Ok(())
             }
-            Command::SetAnalogOutput(cmd) => { cmd.fill_tx_buffer(usb_buf) }
-            Command::SetPulseOutput(cmd) => { cmd.fill_tx_buffer(usb_buf) }
-            Command::RequestData(cmd) => { cmd.fill_tx_buffer(usb_buf) }
-            Command::StopData(cmd) => { cmd.fill_tx_buffer(usb_buf) }
+            Command::SetAnalogOutput(cmd) => { cmd.fill_tx_buffer_v1(usb_buf) }
+            Command::SetPulseOutput(cmd) => { cmd.fill_tx_buffer_v1(usb_buf) }
+            Command::RequestData(cmd) => { cmd.fill_tx_buffer_v1(usb_buf) }
+            Command::StopData(cmd) => { cmd.fill_tx_buffer_v1(usb_buf) }
         }
     }
 
-    pub(super) fn handle_rx(&self, buffer: &[u8; 64]) {
+    pub(super) fn handle_rx_v1(&self, buffer: &[u8; 64]) {
         match self {
             Command::Quit => {}
-            Command::Initialize(_) =>  {}
-            Command::SetAnalogOutput(cmd) => { cmd.handle_rx(buffer) }
-            Command::SetPulseOutput(cmd) => { cmd.handle_rx(buffer) }
-            Command::RequestData(cmd) => { cmd.handle_rx(buffer) }
-            Command::StopData(cmd) => { cmd.handle_rx(buffer) }
+            Command::Initialize(_) => {}
+            Command::SetAnalogOutput(cmd) => { cmd.handle_rx_v1(buffer) }
+            Command::SetPulseOutput(cmd) => { cmd.handle_rx_v1(buffer) }
+            Command::RequestData(cmd) => { cmd.handle_rx_v1(buffer) }
+            Command::StopData(cmd) => { cmd.handle_rx_v1(buffer) }
+        }
+    }
+
+    pub(super) fn handle_rx_v2(&self, buffer: &[u8; 64]) {
+        match self {
+            Command::Quit => {}
+            Command::Initialize(_) => {}
+            Command::SetAnalogOutput(cmd) => { cmd.handle_rx_v2(buffer) }
+            Command::SetPulseOutput(cmd) => { cmd.handle_rx_v2(buffer) }
+            Command::RequestData(cmd) => { cmd.handle_rx_v2(buffer) }
+            Command::StopData(cmd) => { cmd.handle_rx_v2(buffer) }
         }
     }
 

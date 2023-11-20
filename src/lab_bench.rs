@@ -68,7 +68,7 @@ impl LabBench {
                 NscopeDevice::RusbDevice(d.clone())
             ));
 
-        v1_nscopes.chain(v2_nscopes)
+        v2_nscopes.chain(v1_nscopes)
     }
 
     /// Returns a vector containing all nScopes that are available
@@ -112,7 +112,12 @@ impl NscopeLink {
             NscopeDevice::RusbDevice(device) => {
                 if let Ok(device_desc) = device.device_descriptor() {
                     if device_desc.vendor_id() == 0xCAFE && device_desc.product_id() == 0x1234 {
-                        let available = device.open().is_ok();
+                        let mut available = false;
+                        if let Ok(mut dev) = device.open() {
+                            if let Ok(()) = dev.claim_interface(0) {
+                                available = true;
+                            }
+                        }
                         return Some(NscopeLink {
                             available,
                             device: NscopeDevice::RusbDevice(device),

@@ -94,7 +94,12 @@ impl Nscope {
                     Nscope::run_v1(hid_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
             }
-            NscopeHandle::Nscope2(usb_device) => {
+            NscopeHandle::Nscope2(mut usb_device) => {
+                usb_device.claim_interface(0)?;
+                usb_device.claim_interface(1)?;
+                usb_device.claim_interface(2)?;
+                usb_device.claim_interface(3)?;
+                usb_device.claim_interface(4)?;
                 communication_thread.spawn(move || {
                     Nscope::run_v2(usb_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
@@ -181,6 +186,25 @@ impl Drop for Nscope {
 }
 
 #[derive(Debug)]
+struct StatusResponseLegacy {
+    fw_version: u8,
+    power_state: power::PowerState,
+    power_usage: u8,
+    request_id: u8,
+}
+
+impl StatusResponseLegacy {
+    pub(crate) fn new(buf: &[u8]) -> Self {
+        StatusResponseLegacy {
+            fw_version: buf[0] & 0x3F,
+            power_state: power::PowerState::from((buf[0] & 0xC0) >> 6),
+            power_usage: buf[1],
+            request_id: buf[2],
+        }
+    }
+}
+
+#[derive(Debug)]
 struct StatusResponse {
     fw_version: u8,
     power_state: power::PowerState,
@@ -191,10 +215,10 @@ struct StatusResponse {
 impl StatusResponse {
     pub(crate) fn new(buf: &[u8]) -> Self {
         StatusResponse {
-            fw_version: buf[0] & 0x3F,
-            power_state: power::PowerState::from((buf[0] & 0xC0) >> 6),
-            power_usage: buf[1],
-            request_id: buf[2],
+            request_id: buf[0],
+            fw_version: buf[1],
+            power_state: power::PowerState::from(buf[2]),
+            power_usage: buf[3],
         }
     }
 }
