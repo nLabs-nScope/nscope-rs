@@ -34,8 +34,8 @@ pub mod data_requests;
 mod run_loops;
 
 enum NscopeHandle {
-    Nscope1(HidDevice),
-    Nscope2(rusb::DeviceHandle<rusb::GlobalContext>),
+    NscopeLegacy(HidDevice),
+    Nscope(rusb::DeviceHandle<rusb::GlobalContext>),
 }
 
 /// Primary interface to the nScope, used to set outputs,
@@ -69,10 +69,10 @@ impl Nscope {
         let device_handle: NscopeHandle = match dev {
             NscopeDevice::HidApiDevice { info, api } => {
                 let api = api.read().unwrap();
-                NscopeHandle::Nscope1(info.open_device(&api)?)
+                NscopeHandle::NscopeLegacy(info.open_device(&api)?)
             }
             NscopeDevice::RusbDevice(device) => {
-                NscopeHandle::Nscope2(device.open()?)
+                NscopeHandle::Nscope(device.open()?)
             }
         };
 
@@ -89,12 +89,12 @@ impl Nscope {
         // Create the communication thread
         let communication_thread = thread::Builder::new().name("Communication Thread".to_string());
         let join_handle = match device_handle {
-            NscopeHandle::Nscope1(hid_device) => {
+            NscopeHandle::NscopeLegacy(hid_device) => {
                 communication_thread.spawn(move || {
                     Nscope::run_v1(hid_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
             }
-            NscopeHandle::Nscope2(mut usb_device) => {
+            NscopeHandle::Nscope(mut usb_device) => {
                 usb_device.claim_interface(0)?;
                 usb_device.claim_interface(1)?;
                 usb_device.claim_interface(2)?;

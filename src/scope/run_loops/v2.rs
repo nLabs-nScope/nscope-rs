@@ -46,7 +46,7 @@ impl crate::Nscope {
                 match &command {
                     Command::Quit => { break 'communication; }
                     Command::RequestData(cmd) => {
-                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer)
+                        cmd.fill_tx_buffer(&mut outgoing_usb_buffer)
                             .expect("Invalid parameters given to DataRequest");
                         active_data_request = Some(command);
                     }
@@ -54,12 +54,12 @@ impl crate::Nscope {
                         active_requests_map.insert(request_id, command);
                     }
                     Command::SetAnalogOutput(cmd) => {
-                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer)
+                        cmd.fill_tx_buffer(&mut outgoing_usb_buffer)
                             .expect("Invalid parameters given to AxRequest");
                         active_requests_map.insert(request_id, command);
                     }
                     Command::SetPulseOutput(cmd) => {
-                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer)
+                        cmd.fill_tx_buffer(&mut outgoing_usb_buffer)
                             .expect("Invalid parameters given to PxRequest");
                         active_requests_map.insert(request_id, command);
                     }
@@ -100,7 +100,7 @@ impl crate::Nscope {
                         // If we have an active request with this ID
 
                         // Handle the incoming usb packet
-                        command.handle_rx_v2(&incoming_usb_buffer);
+                        command.handle_rx(&incoming_usb_buffer);
 
                         // If the command has finished it's work
                         if command.is_finished() {
