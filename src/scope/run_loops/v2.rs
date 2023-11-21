@@ -6,7 +6,6 @@ use log::{error, trace};
 use rusb::DeviceHandle;
 use crate::PowerStatus;
 use crate::scope::commands::{Command, ScopeCommand};
-use crate::scope::data_requests::StopRequest;
 use crate::scope::StatusResponse;
 
 impl crate::Nscope {
@@ -21,7 +20,7 @@ impl crate::Nscope {
         let mut active_data_request: Option<Command> = None;
         let mut incoming_usb_buffer: [u8; 64] = [0u8; 64];
         let mut outgoing_usb_buffer: [u8; 64] = [0u8; 64];
-        let mut incoming_channel_buffers: [[u8; 64]; 4] = [[0u8; 64]; 4];
+        let mut _incoming_channel_buffers: [[u8; 64]; 4] = [[0u8; 64]; 4];
         let mut request_id: u8 = 0;
 
         'communication: loop {
@@ -29,7 +28,7 @@ impl crate::Nscope {
             if let Some(Command::RequestData(rq)) = &active_data_request {
                 // Get the active request if we have one, check to see if we have a received a stop
                 if let Ok(()) = rq.stop_recv.try_recv() {
-                    command_tx.send(Command::StopData(StopRequest {})).unwrap();
+                    command_tx.send(Command::StopData).unwrap();
                 }
             }
 
@@ -47,22 +46,24 @@ impl crate::Nscope {
                 match &command {
                     Command::Quit => { break 'communication; }
                     Command::RequestData(cmd) => {
-                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer);
+                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer)
+                            .expect("Invalid parameters given to DataRequest");
                         active_data_request = Some(command);
                     }
-                    Command::Initialize(power_on) => {
+                    Command::Initialize(_power_on) => {
                         active_requests_map.insert(request_id, command);
                     }
                     Command::SetAnalogOutput(cmd) => {
-                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer);
+                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer)
+                            .expect("Invalid parameters given to AxRequest");
                         active_requests_map.insert(request_id, command);
                     }
                     Command::SetPulseOutput(cmd) => {
-                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer);
+                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer)
+                            .expect("Invalid parameters given to PxRequest");
                         active_requests_map.insert(request_id, command);
                     }
-                    Command::StopData(cmd) => {
-                        cmd.fill_tx_buffer_v2(&mut outgoing_usb_buffer);
+                    Command::StopData => {
                         active_requests_map.insert(request_id, command);
                     }
                 };
@@ -99,7 +100,7 @@ impl crate::Nscope {
                         // If we have an active request with this ID
 
                         // Handle the incoming usb packet
-                        command.handle_rx_v1(&incoming_usb_buffer);
+                        command.handle_rx_v2(&incoming_usb_buffer);
 
                         // If the command has finished it's work
                         if command.is_finished() {

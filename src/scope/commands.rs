@@ -15,7 +15,7 @@ use std::error::Error;
 use log::debug;
 
 use super::analog_output::AxRequest;
-use super::data_requests::{DataRequest, StopRequest};
+use super::data_requests::{DataRequest};
 use super::pulse_output::PxRequest;
 
 pub(super) const NULL_REQ: [u8; 2] = [0, 0xFF];
@@ -43,7 +43,7 @@ pub(crate) enum Command {
     SetAnalogOutput(AxRequest),
     SetPulseOutput(PxRequest),
     RequestData(DataRequest),
-    StopData(StopRequest),
+    StopData,
 }
 
 impl Command {
@@ -62,7 +62,10 @@ impl Command {
             Command::SetAnalogOutput(cmd) => { cmd.fill_tx_buffer_v1(usb_buf) }
             Command::SetPulseOutput(cmd) => { cmd.fill_tx_buffer_v1(usb_buf) }
             Command::RequestData(cmd) => { cmd.fill_tx_buffer_v1(usb_buf) }
-            Command::StopData(cmd) => { cmd.fill_tx_buffer_v1(usb_buf) }
+            Command::StopData => {
+                usb_buf[1] = 0x05;
+                Ok(())
+            }
         }
     }
 
@@ -73,7 +76,7 @@ impl Command {
             Command::SetAnalogOutput(cmd) => { cmd.handle_rx_v1(buffer) }
             Command::SetPulseOutput(cmd) => { cmd.handle_rx_v1(buffer) }
             Command::RequestData(cmd) => { cmd.handle_rx_v1(buffer) }
-            Command::StopData(cmd) => { cmd.handle_rx_v1(buffer) }
+            Command::StopData => {}
         }
     }
 
@@ -84,7 +87,7 @@ impl Command {
             Command::SetAnalogOutput(cmd) => { cmd.handle_rx_v2(buffer) }
             Command::SetPulseOutput(cmd) => { cmd.handle_rx_v2(buffer) }
             Command::RequestData(cmd) => { cmd.handle_rx_v2(buffer) }
-            Command::StopData(cmd) => { cmd.handle_rx_v2(buffer) }
+            Command::StopData => {}
         }
     }
 
@@ -95,7 +98,7 @@ impl Command {
             Command::SetAnalogOutput(cmd) => { cmd.is_finished() }
             Command::SetPulseOutput(cmd) => { cmd.is_finished() }
             Command::RequestData(cmd) => { cmd.is_finished() }
-            Command::StopData(cmd) => { cmd.is_finished() }
+            Command::StopData => { true }
         }
     }
 }

@@ -6,7 +6,6 @@ use log::{error, trace};
 use crate::PowerStatus;
 use crate::scope::{commands, StatusResponseLegacy};
 use crate::scope::commands::Command;
-use crate::scope::data_requests::StopRequest;
 
 
 impl crate::Nscope {
@@ -32,7 +31,7 @@ impl crate::Nscope {
                     // we get the active request
                     if let Ok(()) = rq.stop_recv.try_recv() {
                         // We have recieved a stop signal
-                        command_tx.send(Command::StopData(StopRequest {})).unwrap();
+                        command_tx.send(Command::StopData).unwrap();
                     }
                 }
             }
@@ -109,7 +108,7 @@ impl crate::Nscope {
                         active_data_request = active_data_request.filter(|&id| id != response.request_id);
 
                         // Remove this request from the active map
-                        if let Some(Command::StopData(_)) = active_requests_map.remove(&response.request_id) {
+                        if let Some(Command::StopData) = active_requests_map.remove(&response.request_id) {
                             // If we received the ACK on a stop command, check if we have an active id
                             if let Some(active_id) = &active_data_request {
                                 // Look up that ID, remove the command from the active map

@@ -218,7 +218,7 @@ impl ScopeCommand for AxRequest {
         Ok(())
     }
 
-    fn fill_tx_buffer_v2(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+    fn fill_tx_buffer_v2(&self, _usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
         // todo!()
         Ok(())
     }

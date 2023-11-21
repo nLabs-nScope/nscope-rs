@@ -53,9 +53,6 @@ pub struct SweepHandle {
     stop_send: Sender<()>,
 }
 
-#[derive(Debug)]
-pub(crate) struct StopRequest {}
-
 impl Nscope {
     pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32, trigger: Option<Trigger>) -> SweepHandle {
         let (tx, rx) = mpsc::channel::<Sample>();
@@ -156,8 +153,7 @@ impl ScopeCommand for DataRequest {
         Ok(())
     }
 
-    fn fill_tx_buffer_v2(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
-        // todo!()
+    fn fill_tx_buffer_v2(&self, _usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
 
@@ -200,25 +196,10 @@ impl ScopeCommand for DataRequest {
         }
     }
 
-    fn handle_rx_v2(&self, usb_buf: &[u8; 64]) {
+    fn handle_rx_v2(&self, _usb_buf: &[u8; 64]) {
     }
 
     fn is_finished(&self) -> bool {
         *self.remaining_samples.read().unwrap() == 0
     }
-}
-
-impl ScopeCommand for StopRequest {
-    fn fill_tx_buffer_v1(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
-        usb_buf[1] = 0x05;
-        Ok(())
-    }
-
-    fn fill_tx_buffer_v2(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
-        usb_buf[1] = 0x05;
-        Ok(())
-    }
-    fn handle_rx_v1(&self, _usb_buf: &[u8; 64]) {}
-    fn handle_rx_v2(&self, _usb_buf: &[u8; 64]) {}
-    fn is_finished(&self) -> bool { true }
 }
