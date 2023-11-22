@@ -34,6 +34,7 @@ pub enum PowerState {
     PowerOn,
     Shorted,
     Overcurrent,
+    Startup,
     Unknown,
 }
 
@@ -44,6 +45,7 @@ impl From<u8> for PowerState {
             1 => PowerState::PowerOn,
             2 => PowerState::Shorted,
             3 => PowerState::Overcurrent,
+            4 => PowerState::Startup,
             _ => PowerState::Unknown,
         }
     }
