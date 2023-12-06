@@ -42,15 +42,15 @@ impl crate::Nscope {
                     request_id += 1
                 }
 
+                outgoing_usb_buffer[0] = request_id;
+                outgoing_usb_buffer[1] = command.id_byte();
+                trace!("Sent request {}: command: {}", request_id, command.id_byte());
+
                 // Fill the outgoing buffer with whatever we need
                 match &command {
                     Command::Quit => { break 'communication; }
-                    Command::RequestData(cmd) => {
-                        cmd.fill_tx_buffer(&mut outgoing_usb_buffer)
-                            .expect("Invalid parameters given to DataRequest");
-                        active_data_request = Some(command);
-                    }
-                    Command::Initialize(_power_on) => {
+                    Command::Initialize(power_on) => {
+                        outgoing_usb_buffer[2] = *power_on as u8;
                         active_requests_map.insert(request_id, command);
                     }
                     Command::SetAnalogOutput(cmd) => {
@@ -63,12 +63,16 @@ impl crate::Nscope {
                             .expect("Invalid parameters given to PxRequest");
                         active_requests_map.insert(request_id, command);
                     }
+                    Command::RequestData(cmd) => {
+                        cmd.fill_tx_buffer(&mut outgoing_usb_buffer)
+                            .expect("Invalid parameters given to DataRequest");
+                        active_data_request = Some(command);
+                    }
                     Command::StopData => {
                         active_requests_map.insert(request_id, command);
                     }
                 };
 
-                outgoing_usb_buffer[0] = request_id;
                 if let Err(error) = usb_device.write_bulk(0x01,
                                                           &outgoing_usb_buffer,
                                                           Duration::from_millis(100))
@@ -76,11 +80,7 @@ impl crate::Nscope {
                     error!("USB write error: {:?}", error);
                     break 'communication;
                 }
-                trace!("Sent request {}", request_id);
             }
-
-
-            // TODO: Read the incoming control requests
 
             match usb_device.read_bulk(0x81,
                                        &mut incoming_usb_buffer,

@@ -101,4 +101,15 @@ impl Command {
             Command::StopData => { true }
         }
     }
+
+    pub(crate) fn id_byte(&self) -> u8 {
+        match self {
+            Command::Quit => {0}
+            Command::Initialize(_) => {1}
+            Command::SetAnalogOutput(_) => {2}
+            Command::SetPulseOutput(_) => {3}
+            Command::RequestData(_) => {4}
+            Command::StopData => {5}
+        }
+    }
 }

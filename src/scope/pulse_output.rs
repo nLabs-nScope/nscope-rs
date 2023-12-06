@@ -199,8 +199,18 @@ impl ScopeCommand for PxRequest {
         Ok(())
     }
 
-    fn fill_tx_buffer(&self, _usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
-        // todo!()
+    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+        // Set the channel of interest
+        usb_buf[3] = 0x1 << self.channel;
+
+
+        let idx_start = 4 + 12 * self.channel;
+        usb_buf[idx_start] = self.px_state.is_on as u8;
+        usb_buf[idx_start + 1..=idx_start + 4].copy_from_slice(
+            &(self.px_state.frequency as f32).to_le_bytes());
+        usb_buf[idx_start + 5..=idx_start + 8].copy_from_slice(
+            &(self.px_state.duty as f32).to_le_bytes());
+
         Ok(())
     }
 

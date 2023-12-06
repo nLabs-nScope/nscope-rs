@@ -38,8 +38,8 @@ impl FromStr for AnalogWaveType {
 /// Possible analog output polarities
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AnalogSignalPolarity {
-    Unipolar,
-    Bipolar,
+    Unipolar = 0,
+    Bipolar = 1,
 }
 
 impl FromStr for AnalogSignalPolarity {
@@ -218,8 +218,20 @@ impl ScopeCommand for AxRequest {
         Ok(())
     }
 
-    fn fill_tx_buffer(&self, _usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
-        // todo!()
+    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+        // Set the channel of interest
+        usb_buf[3] = 0x1 << self.channel;
+
+        let idx_start = 4 + 12 * self.channel;
+
+        usb_buf[idx_start] = self.ax_state.is_on as u8;
+        usb_buf[idx_start + 1..=idx_start + 4].copy_from_slice(
+            &(self.ax_state.frequency as f32).to_le_bytes());
+        usb_buf[idx_start + 5..=idx_start + 8].copy_from_slice(
+            &(self.ax_state.amplitude as f32).to_le_bytes());
+        usb_buf[idx_start + 9] = self.ax_state.wave_type as u8;
+        usb_buf[idx_start + 10] = self.ax_state.polarity as u8;
+
         Ok(())
     }
 
