@@ -111,7 +111,7 @@ impl NscopeLink {
             }
             NscopeDevice::RusbDevice(device) => {
                 if let Ok(device_desc) = device.device_descriptor() {
-                    if device_desc.vendor_id() == 0xCAFE && device_desc.product_id() == 0x1234 {
+                    if device_desc.vendor_id() == 0x0483 && device_desc.product_id() == 0xA4AA {
                         let mut available = false;
                         if let Ok(mut dev) = device.open() {
                             if let Ok(()) = dev.claim_interface(0) {
