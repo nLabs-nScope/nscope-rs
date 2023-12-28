@@ -8,7 +8,7 @@
  *
  **************************************************************************************************/
 
-use nscope::LabBench;
+use nscope::{LabBench, NscopeDFU};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -18,15 +18,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let bench = LabBench::new()?;
 
     // Print the bench to show a list of detected nScopes
-    println!("Lab Bench: \n{:?}", bench);
+    println!("{:?}", bench);
 
-    println!("\nManual list of all detected nScopes:");
-    // Or loop over all nScope links in the list and print them
-    for nscope_link in bench.list() {
-        println!("    {:?}", nscope_link)
+    // Get a list of all the nScopes that are detected in DFU mode
+    let scopes_in_dfu: Vec<NscopeDFU> = bench.scopes_in_dfu().collect();
+
+    // If we have a scope in DFU mode, update the first one we found
+    if let Some(dfu) = scopes_in_dfu.first() {
+        dfu.update()?;
+    } else {
+        println!("Cannot find any nScopes in DFU mode");
     }
-    for nscope_dfu in bench.scopes_in_dfu() {
-        println!("    {:?}", nscope_dfu)
-    }
+
     Ok(())
 }

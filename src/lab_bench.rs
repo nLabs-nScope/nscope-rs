@@ -9,6 +9,7 @@
  **************************************************************************************************/
 
 use crate::scope::Nscope;
+use crate::scope_dfu::NscopeDFU;
 use std::{fmt, io};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
@@ -69,6 +70,14 @@ impl LabBench {
             ));
 
         v2_nscopes.chain(v1_nscopes)
+    }
+
+    pub fn scopes_in_dfu(&self) -> impl Iterator<Item=NscopeDFU> + '_ {
+        self.rusb_devices
+            .iter()
+            .filter_map(|d| {
+                NscopeDFU::new(d)
+            })
     }
 
     /// Returns a vector containing all nScopes that are available
@@ -139,8 +148,10 @@ impl fmt::Debug for LabBench {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "LabBench: {:#?}",
-            self.list().collect::<Vec<NscopeLink>>()
+            "Connected nScopes: {:#?} \n\
+            nScopes in DFU mode: {:#?}",
+            self.list().collect::<Vec<NscopeLink>>(),
+            self.scopes_in_dfu().collect::<Vec<NscopeDFU>>()
         )
     }
 }
