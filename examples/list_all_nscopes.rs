@@ -25,8 +25,5 @@ fn main() -> Result<(), Box<dyn Error>> {
     for nscope_link in bench.list() {
         println!("    {:?}", nscope_link)
     }
-    for nscope_dfu in bench.scopes_in_dfu() {
-        println!("    {:?}", nscope_dfu)
-    }
     Ok(())
 }

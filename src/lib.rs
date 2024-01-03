@@ -53,13 +53,11 @@
 
 mod lab_bench;
 mod scope;
-mod scope_dfu;
 mod version;
 mod firmware;
 
 pub use lab_bench::LabBench;
 pub use lab_bench::NscopeLink;
-pub use scope_dfu::NscopeDFU;
 pub use scope::Nscope;
 pub use scope::power::*;
 pub use scope::pulse_output::*;

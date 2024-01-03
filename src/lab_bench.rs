@@ -9,10 +9,10 @@
  **************************************************************************************************/
 
 use crate::scope::Nscope;
-use crate::scope_dfu::NscopeDFU;
 use std::{fmt, io};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
+use crate::firmware::{FIRMWARE, FIRMWARE_VERSION};
 
 pub(crate) enum NscopeDevice {
     HidApiDevice { info: hidapi::DeviceInfo, api: Arc<RwLock<hidapi::HidApi>> },
@@ -29,6 +29,8 @@ pub struct LabBench {
 /// A detected link between the computer and an nScope, used to open and retrieve an nScope
 pub struct NscopeLink {
     available: bool,
+    in_dfu: bool,
+    needs_update: bool,
     device: NscopeDevice,
 }
 
@@ -72,14 +74,6 @@ impl LabBench {
         v2_nscopes.chain(v1_nscopes)
     }
 
-    pub fn scopes_in_dfu(&self) -> impl Iterator<Item=NscopeDFU> + '_ {
-        self.rusb_devices
-            .iter()
-            .filter_map(|d| {
-                NscopeDFU::new(d)
-            })
-    }
-
     /// Returns a vector containing all nScopes that are available
     pub fn open_all_available(&self) -> Vec<Nscope> {
         self.list().filter_map(|nsl| nsl.open(false).ok()).collect()
@@ -113,6 +107,8 @@ impl NscopeLink {
                     let available = info.open_device(&hid_api).is_ok();
                     return Some(NscopeLink {
                         available,
+                        in_dfu: false,
+                        needs_update: false,
                         device: NscopeDevice::HidApiDevice { info: info.clone(), api: Arc::clone(&api) },
                     });
                 }
@@ -120,7 +116,11 @@ impl NscopeLink {
             }
             NscopeDevice::RusbDevice(device) => {
                 if let Ok(device_desc) = device.device_descriptor() {
-                    if device_desc.vendor_id() == 0x0483 && device_desc.product_id() == 0xA4AA {
+                    let vendor_id = device_desc.vendor_id();
+                    let product_id = device_desc.product_id();
+                    let firmware_version = device_desc.device_version();
+
+                    if vendor_id == 0x0483 && product_id == 0xA4AA {
                         let mut available = false;
                         if let Ok(mut dev) = device.open() {
                             if let Ok(()) = dev.claim_interface(0) {
@@ -129,6 +129,15 @@ impl NscopeLink {
                         }
                         return Some(NscopeLink {
                             available,
+                            in_dfu: false,
+                            needs_update: firmware_version != rusb::Version::from_bcd(FIRMWARE_VERSION),
+                            device: NscopeDevice::RusbDevice(device),
+                        });
+                    } else if device_desc.vendor_id() == 0x0483 && device_desc.product_id() == 0xA4AB {
+                        return Some(NscopeLink {
+                            available: false,
+                            in_dfu: true,
+                            needs_update: false,
                             device: NscopeDevice::RusbDevice(device),
                         });
                     }
@@ -142,17 +151,37 @@ impl NscopeLink {
     pub fn open(&self, power_on: bool) -> Result<Nscope, Box<dyn Error>> {
         Nscope::new(&self.device, power_on)
     }
+
+    /// Update the nScope at the link
+    pub fn update(&self) -> Result<(), Box<dyn Error>> {
+        if !self.in_dfu {
+            return Err("nScope is not in DFU mode".into());
+        }
+
+        match &self.device {
+            NscopeDevice::HidApiDevice { .. } => {
+                return Err("Cannot update nScope v1".into());
+            }
+            NscopeDevice::RusbDevice(device) => {
+                let mut dfu = dfu_libusb::DfuLibusb::from_usb_device(
+                    device.clone(),
+                    device.open()?,
+                    0, 0)?;
+
+                dfu.override_address(0x08008000);
+                dfu.download_from_slice(FIRMWARE)?;
+                dfu.detach()?;
+                println!("Resetting device");
+                dfu.usb_reset()?;
+            }
+        };
+        Ok(())
+    }
 }
 
 impl fmt::Debug for LabBench {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Connected nScopes: {:#?} \n\
-            nScopes in DFU mode: {:#?}",
-            self.list().collect::<Vec<NscopeLink>>(),
-            self.scopes_in_dfu().collect::<Vec<NscopeDFU>>()
-        )
+        write!(f, "{:#?}", self.list().collect::<Vec<NscopeLink>>())
     }
 }
 
@@ -162,11 +191,26 @@ impl fmt::Debug for NscopeLink {
             NscopeDevice::HidApiDevice { .. } => { "nScope v1" }
             NscopeDevice::RusbDevice(_) => { "nScope v2" }
         };
-        write!(
-            f,
-            "Link to {} [ available: {} ]",
-            device_name,
-            self.available
-        )
+        if self.in_dfu {
+            write!(
+                f,
+                "Link to {} [ in DFU mode ]",
+                device_name,
+            )
+        } else if self.needs_update {
+            write!(
+                f,
+                "Link to {} [ REQUIRES FIRMWARE UPDATE ] [ available: {} ]",
+                device_name,
+                self.available,
+            )
+        } else {
+            write!(
+                f,
+                "Link to {} [ available: {} ]",
+                device_name,
+                self.available,
+            )
+        }
     }
 }
