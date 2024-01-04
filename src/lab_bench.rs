@@ -148,11 +148,15 @@ impl NscopeLink {
     }
 
     /// Opens and returns the nScope at the link
+    ///
+    /// Fails if the nScope is in DFU mode or needs an update
     pub fn open(&self, power_on: bool) -> Result<Nscope, Box<dyn Error>> {
         Nscope::new(&self.device, power_on)
     }
 
     /// Update the nScope at the link
+    ///
+    /// Fails if the nScope is not in DFU mode
     pub fn update(&self) -> Result<(), Box<dyn Error>> {
         if !self.in_dfu {
             return Err("nScope is not in DFU mode".into());
@@ -167,12 +171,8 @@ impl NscopeLink {
                     device.clone(),
                     device.open()?,
                     0, 0)?;
-
-                dfu.override_address(0x08008000);
+                dfu.override_address(0x08010000);
                 dfu.download_from_slice(FIRMWARE)?;
-                dfu.detach()?;
-                println!("Resetting device");
-                dfu.usb_reset()?;
             }
         };
         Ok(())
