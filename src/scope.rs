@@ -67,9 +67,9 @@ impl Nscope {
     /// Create a new Nscope object
     pub(crate) fn new(dev: &NscopeDevice, power_on: bool) -> Result<Self, Box<dyn Error>> {
         let device_handle: NscopeHandle = match dev {
-            NscopeDevice::HidApiDevice { info, api } => {
+            NscopeDevice::HidApiDevice { device, api } => {
                 let api = api.read().unwrap();
-                NscopeHandle::NscopeLegacy(info.open_device(&api)?)
+                NscopeHandle::NscopeLegacy(device.open_device(&api)?)
             }
             NscopeDevice::RusbDevice(device) => {
                 NscopeHandle::Nscope(device.open()?)
