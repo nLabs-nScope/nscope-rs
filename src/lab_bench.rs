@@ -12,6 +12,7 @@ use crate::scope::Nscope;
 use std::{fmt, io};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 use crate::firmware::{FIRMWARE, FIRMWARE_VERSION};
 
 pub(crate) enum NscopeDevice {
@@ -28,9 +29,9 @@ pub struct LabBench {
 
 /// A detected link between the computer and an nScope, used to open and retrieve an nScope
 pub struct NscopeLink {
-    available: bool,
-    in_dfu: bool,
-    needs_update: bool,
+    pub available: bool,
+    pub in_dfu: bool,
+    pub needs_update: bool,
     device: NscopeDevice,
 }
 
@@ -173,6 +174,26 @@ impl NscopeLink {
                     0, 0)?;
                 dfu.override_address(0x08010000);
                 dfu.download_from_slice(FIRMWARE)?;
+            }
+        };
+        Ok(())
+    }
+
+    /// Requests the nScope to jump to DFU mode
+    ///
+    /// Fails if the nScope is in DFU mode or is unavailable
+    pub fn request_dfu(&self) -> Result<(), Box<dyn Error>> {
+        if self.in_dfu {
+            return Err("nScope is already in DFU mode".into());
+        }
+        match &self.device {
+            NscopeDevice::HidApiDevice { .. } => {
+                return Err("Unsupported for nScope v1".into());
+            }
+            NscopeDevice::RusbDevice(device) => {
+                let mut device_handle = device.open()?;
+                device_handle.claim_interface(0)?;
+                device_handle.write_bulk(0x01, &[0u8, 6u8], Duration::from_millis(100))?;
             }
         };
         Ok(())

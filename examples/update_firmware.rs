@@ -10,19 +10,36 @@
 
 use nscope::LabBench;
 use std::error::Error;
+use std::thread;
+use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     // Create a LabBench
-    let bench = LabBench::new()?;
+    let mut bench = LabBench::new()?;
 
     // Print the bench to show a list of detected nScopes
     println!("{:?}", bench);
 
-    // Update any scope that is in DFU mode
     for nscope_link in bench.list() {
-        if let Err(e) =  nscope_link.update() {
+        // Request DFU on any nScope that is available
+        if nscope_link.available {
+            if let Err(e) = nscope_link.request_dfu() {
+                println!("Failed to request DFU on an available nScope: {e}")
+            }
+        }
+    }
+
+    // Wait 500ms for the scope to detach and re-attach as DFU
+    thread::sleep(Duration::from_millis(500));
+    bench.refresh();
+
+    // Print the bench to show the refreshed list
+    println!("{:?}", bench);
+
+    for nscope_link in bench.list() {
+        if let Err(e) = nscope_link.update() {
             println!("Encountered an error updating nScope: {e}")
         }
     }
