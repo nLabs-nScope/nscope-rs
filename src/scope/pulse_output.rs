@@ -100,12 +100,14 @@ impl PulseOutput {
         });
 
         // Send the command to the backend
-        self.command_tx.send(command).unwrap();
+        if self.command_tx.send(command).is_ok() {
 
-        // Wait for the response from the backend
-        let response_state = rx.recv().unwrap();
-        // Write the response state
-        *self.state.write().unwrap() = response_state;
+            // Wait for the response from the backend
+            if let Ok(response_state) = rx.recv() {
+                // Write the response state
+                *self.state.write().unwrap() = response_state;
+            }
+        }
     }
 
     pub fn is_on(&self) -> bool {
