@@ -122,6 +122,16 @@ impl LabBench {
         }
         Err(err)
     }
+
+    /// Returns the first nScope that is in DFU mode
+    pub fn get_first_in_dfu(&self) -> Option<NscopeLink> {
+        for nsl in self.list() {
+            if nsl.in_dfu {
+                return Some(nsl)
+            }
+        }
+        None
+    }
 }
 
 impl NscopeLink {
