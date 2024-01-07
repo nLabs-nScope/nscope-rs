@@ -68,7 +68,9 @@ impl Nscope {
             stop_recv,
         });
 
-        self.command_tx.send(command).unwrap();
+        if self.command_tx.send(command).is_err() {
+            *remaining_samples.write().unwrap() = 0;
+        }
 
         SweepHandle {
             receiver: rx,
