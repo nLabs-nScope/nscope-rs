@@ -132,6 +132,16 @@ impl LabBench {
         }
         None
     }
+
+    /// Returns the first nScope that is available and needs an update
+    pub fn get_first_needing_update(&self) -> Option<NscopeLink> {
+        for nsl in self.list() {
+            if nsl.needs_update && nsl.available {
+                return Some(nsl)
+            }
+        }
+        None
+    }
 }
 
 impl NscopeLink {
