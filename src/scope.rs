@@ -96,10 +96,10 @@ impl Nscope {
             }
             NscopeHandle::Nscope(mut usb_device) => {
                 usb_device.claim_interface(0)?;
-                usb_device.claim_interface(1)?;
-                usb_device.claim_interface(2)?;
-                usb_device.claim_interface(3)?;
-                usb_device.claim_interface(4)?;
+                // usb_device.claim_interface(1)?;
+                // usb_device.claim_interface(2)?;
+                // usb_device.claim_interface(3)?;
+                // usb_device.claim_interface(4)?;
                 communication_thread.spawn(move || {
                     Nscope::run_v2(usb_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
