@@ -289,9 +289,10 @@ impl NscopeLink {
                 return Err("Unsupported for nScope v1".into());
             }
             NscopeDevice::RusbDevice(device) => {
+                let out_buffer = [0u8, 6u8];
                 let mut device_handle = device.open()?;
                 device_handle.claim_interface(0)?;
-                device_handle.write_bulk(0x01, &[0u8, 6u8], Duration::from_millis(100))?;
+                device_handle.write_bulk(0x01, &out_buffer, Duration::from_millis(100))?;
             }
         };
         Ok(())
