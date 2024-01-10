@@ -244,6 +244,9 @@ impl NscopeLink {
     ///
     /// Fails if the nScope is in DFU mode or needs an update
     pub fn open(&self, power_on: bool) -> Result<Nscope, Box<dyn Error>> {
+        if self.in_dfu {
+            return Err("nScope is in DFU mode".into());
+        }
         if self.needs_update {
             return Err("nScope needs a firmware update".into());
         }
