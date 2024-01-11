@@ -90,9 +90,9 @@ impl crate::Nscope {
                 Ok(_) => {
                     let response = StatusResponse::new(&incoming_usb_buffer);
 
-                    *fw_version.write().unwrap() = Some(response.fw_version);
+                    *fw_version.write().unwrap() = Some((response.fw_version & 0xFF) as u8);
                     power_status.write().unwrap().state = response.power_state;
-                    power_status.write().unwrap().usage = response.power_usage as f64 / 255.0;
+                    power_status.write().unwrap().usage = response.power_usage as f64 / 1000.0 * 5.0;
 
                     if response.request_id == 0 {
                         trace!("Received a status update from nScope");

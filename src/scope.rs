@@ -9,6 +9,7 @@
  **************************************************************************************************/
 
 use std::{fmt, thread};
+use std::convert::TryInto;
 use std::error::Error;
 use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::Sender;
@@ -96,10 +97,6 @@ impl Nscope {
             }
             NscopeHandle::Nscope(mut usb_device) => {
                 usb_device.claim_interface(0)?;
-                // usb_device.claim_interface(1)?;
-                // usb_device.claim_interface(2)?;
-                // usb_device.claim_interface(3)?;
-                // usb_device.claim_interface(4)?;
                 communication_thread.spawn(move || {
                     Nscope::run_v2(usb_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
@@ -206,9 +203,9 @@ impl StatusResponseLegacy {
 
 #[derive(Debug)]
 struct StatusResponse {
-    fw_version: u8,
+    fw_version: u16,
     power_state: power::PowerState,
-    power_usage: u8,
+    power_usage: f32,
     request_id: u8,
 }
 
@@ -216,9 +213,9 @@ impl StatusResponse {
     pub(crate) fn new(buf: &[u8]) -> Self {
         StatusResponse {
             request_id: buf[0],
-            fw_version: buf[1],
-            power_state: power::PowerState::from(buf[2]),
-            power_usage: buf[3],
+            fw_version: u16::from_le_bytes(buf[1..3].try_into().unwrap()),
+            power_state: power::PowerState::from(buf[3]),
+            power_usage: f32::from_le_bytes(buf[4..8].try_into().unwrap()),
         }
     }
 }
