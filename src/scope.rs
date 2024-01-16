@@ -52,7 +52,7 @@ pub struct Nscope {
     pub ch3: AnalogInput,
     pub ch4: AnalogInput,
 
-    fw_version: Arc<RwLock<Option<u8>>>,
+    fw_version: Arc<RwLock<Option<u16>>>,
     power_status: Arc<RwLock<PowerStatus>>,
     command_tx: Sender<Command>,
     join_handle: Option<JoinHandle<()>>,
@@ -138,8 +138,19 @@ impl Nscope {
         }
     }
 
+    #[deprecated(since="1.1.0", note="Please use `version` instead")]
     pub fn fw_version(&self) -> Result<u8, Box<dyn Error>> {
-        self.fw_version.read().unwrap().ok_or_else(|| "Cannot read FW version".into())
+        if let Some(full_version) = *self.fw_version.read().unwrap() {
+            if (full_version & 0xFF00) != 0 {
+                return Err("Connected to nScope v2 or newer, use scope.version() to read".into())
+            }
+            return Ok(full_version as u8);
+        }
+        Err("Cannot read nScope version".into())
+    }
+
+    pub fn version(&self) -> Result<u16, Box<dyn Error>> {
+        self.fw_version.read().unwrap().ok_or_else(|| "Cannot read nScope version".into())
     }
 
     pub fn analog_output(&self, channel: usize) -> Option<&AnalogOutput> {

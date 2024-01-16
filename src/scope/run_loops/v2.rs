@@ -13,7 +13,7 @@ impl crate::Nscope {
         usb_device: DeviceHandle<rusb::GlobalContext>,
         command_tx: Sender<Command>,
         command_rx: Receiver<Command>,
-        fw_version: Arc<RwLock<Option<u8>>>,
+        fw_version: Arc<RwLock<Option<u16>>>,
         power_status: Arc<RwLock<PowerStatus>>,
     ) {
         let mut active_requests_map: HashMap<u8, Command> = HashMap::new();
@@ -90,7 +90,7 @@ impl crate::Nscope {
                 Ok(_) => {
                     let response = StatusResponse::new(&incoming_usb_buffer);
 
-                    *fw_version.write().unwrap() = Some((response.fw_version & 0xFF) as u8);
+                    *fw_version.write().unwrap() = Some(response.fw_version);
                     power_status.write().unwrap().state = response.power_state;
                     power_status.write().unwrap().usage = response.power_usage as f64 / 1000.0 * 5.0;
 
