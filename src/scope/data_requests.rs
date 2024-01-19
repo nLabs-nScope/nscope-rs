@@ -8,6 +8,7 @@
  *
  **************************************************************************************************/
 
+use std::collections::VecDeque;
 use std::error::Error;
 use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
@@ -43,6 +44,8 @@ pub(crate) struct DataRequest {
     pub trigger: Trigger,
     pub sender: Sender<Sample>,
     pub stop_recv: Receiver<()>,
+
+    data_collator: Arc<RwLock<[VecDeque<u16>; 4]>>,
 }
 
 /// Handle to an ongoing data sweep, holds received data from nScope
@@ -66,6 +69,7 @@ impl Nscope {
             trigger: trigger.unwrap_or_default(),
             sender: tx,
             stop_recv,
+            data_collator: Default::default(),
         });
 
         if self.command_tx.send(command).is_err() {
@@ -155,7 +159,21 @@ impl ScopeCommand for DataRequest {
         Ok(())
     }
 
-    fn fill_tx_buffer(&self, _usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+        let num_channels_on = self.channels.iter().filter(|&ch| ch.is_on).count();
+
+
+        let samples_between_records: u32 = (400_000.0 / self.sample_rate_hz) as u32;
+
+        let total_samples = *self.remaining_samples.read().unwrap();
+        trace!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
+        if samples_between_records < 25 && total_samples * num_channels_on as u32 > 3200 {
+            return Err("Data not recordable".into());
+        }
+
+        usb_buf[2..6].copy_from_slice(&samples_between_records.to_le_bytes());
+        usb_buf[6..10].copy_from_slice(&total_samples.to_le_bytes());
+
         Ok(())
     }
 
@@ -197,11 +215,70 @@ impl ScopeCommand for DataRequest {
             self.sender.send(sample).unwrap();
         }
     }
-
-    fn handle_rx(&self, _usb_buf: &[u8; 64]) {
-    }
+    fn handle_rx(&self, _usb_buf: &[u8; 64]) {}
 
     fn is_finished(&self) -> bool {
         *self.remaining_samples.read().unwrap() == 0
+    }
+}
+
+
+impl DataRequest {
+    pub(crate) fn handle_incoming_data(&self, usb_buf: &[u8; 64], channel: usize) {
+
+        let num_received = usb_buf[0] as usize;
+        let mut num_parsed: usize = 0;
+        while num_parsed < num_received {
+            let byte: usize = 1 + num_parsed / 2 * 3;
+
+            let adc_data = match num_parsed % 2 {
+                0 => usb_buf[byte] as u16 | ((usb_buf[byte + 1] & 0xF) as u16) << 8,
+                1 => usb_buf[byte + 1] as u16 >> 4 | (usb_buf[byte + 2] as u16) << 4,
+                _ => panic!("Unexpected behavior of odd/even bitmask")
+            };
+
+            trace!("Ch{}: ADCData: {}", channel+1, adc_data);
+            self.data_collator.write().unwrap()[channel].push_back(adc_data);
+            num_parsed += 1;
+        }
+    }
+
+    pub(crate) fn collate_results(&self) {
+
+        let data_collator = &mut *self.data_collator.write().unwrap();
+
+
+        let received_samples = data_collator.iter().map(
+            |ch| ch.len()
+        ).collect::<Vec<usize>>();
+
+        if let Some(&complete_samples) = received_samples.iter().min() {
+
+            let mut samples_to_pop = complete_samples;
+            while samples_to_pop > 0 {
+                let mut sample = Sample {
+                    time_since_start: 0.0,
+                    data: [None; 4],
+                };
+
+                for (ch, input_buffer) in data_collator.iter_mut().enumerate() {
+                    let data = input_buffer.pop_front().unwrap();
+                    sample.data[ch] = Some(data as f64);
+                }
+                self.sender.send(sample).unwrap();
+                samples_to_pop -= 1;
+            }
+
+
+            if complete_samples > 0{
+                let mut remaining_samples = self.remaining_samples.write().unwrap();
+                *remaining_samples -= complete_samples as u32;
+                trace!("Received {} samples, {} samples remaining", complete_samples, remaining_samples);
+            }
+
+
+
+        }
+
     }
 }

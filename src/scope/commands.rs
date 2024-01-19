@@ -11,6 +11,7 @@
 
 
 use std::error::Error;
+use std::sync::mpsc::Sender;
 
 use log::debug;
 
@@ -39,7 +40,7 @@ pub(super) trait ScopeCommand {
 #[derive(Debug)]
 pub(crate) enum Command {
     Quit,
-    Initialize(bool),
+    Initialize(bool, Sender<()>),
     SetAnalogOutput(AxRequest),
     SetPulseOutput(PxRequest),
     RequestData(DataRequest),
@@ -51,7 +52,7 @@ impl Command {
         debug!("Processed command: {:?}", self);
         match self {
             Command::Quit => { Ok(()) }
-            Command::Initialize(power_on) => {
+            Command::Initialize(power_on, _) => {
                 if *power_on {
                     usb_buf[1] = 0x07;
                 } else {
@@ -72,7 +73,7 @@ impl Command {
     pub(super) fn handle_rx_legacy(&self, buffer: &[u8; 64]) {
         match self {
             Command::Quit => {}
-            Command::Initialize(_) => {}
+            Command::Initialize(_, _) => {}
             Command::SetAnalogOutput(cmd) => { cmd.handle_rx_legacy(buffer) }
             Command::SetPulseOutput(cmd) => { cmd.handle_rx_legacy(buffer) }
             Command::RequestData(cmd) => { cmd.handle_rx_legacy(buffer) }
@@ -83,7 +84,7 @@ impl Command {
     pub(super) fn handle_rx(&self, buffer: &[u8; 64]) {
         match self {
             Command::Quit => {}
-            Command::Initialize(_) => {}
+            Command::Initialize(_, sender) => { sender.send(()).unwrap() }
             Command::SetAnalogOutput(cmd) => { cmd.handle_rx(buffer) }
             Command::SetPulseOutput(cmd) => { cmd.handle_rx(buffer) }
             Command::RequestData(cmd) => { cmd.handle_rx(buffer) }
@@ -94,7 +95,7 @@ impl Command {
     pub(super) fn is_finished(&self) -> bool {
         match self {
             Command::Quit => { true }
-            Command::Initialize(_) => { true }
+            Command::Initialize(_, _) => { true }
             Command::SetAnalogOutput(cmd) => { cmd.is_finished() }
             Command::SetPulseOutput(cmd) => { cmd.is_finished() }
             Command::RequestData(cmd) => { cmd.is_finished() }
@@ -104,12 +105,12 @@ impl Command {
 
     pub(crate) fn id_byte(&self) -> u8 {
         match self {
-            Command::Quit => {0}
-            Command::Initialize(_) => {1}
-            Command::SetAnalogOutput(_) => {2}
-            Command::SetPulseOutput(_) => {3}
-            Command::RequestData(_) => {4}
-            Command::StopData => {5}
+            Command::Quit => { 0 }
+            Command::Initialize(_, _) => { 1 }
+            Command::SetAnalogOutput(_) => { 2 }
+            Command::SetPulseOutput(_) => { 3 }
+            Command::RequestData(_) => { 4 }
+            Command::StopData => { 5 }
         }
     }
 }

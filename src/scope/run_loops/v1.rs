@@ -9,7 +9,6 @@ use crate::scope::commands::Command;
 
 
 impl crate::Nscope {
-
     pub(crate) fn run_v1(
         hid_device: HidDevice,
         command_tx: Sender<Command>,
@@ -30,7 +29,7 @@ impl crate::Nscope {
                 if let Command::RequestData(rq) = active_requests_map.get(id).unwrap() {
                     // we get the active request
                     if let Ok(()) = rq.stop_recv.try_recv() {
-                        // We have recieved a stop signal
+                        // We have received a stop signal
                         command_tx.send(Command::StopData).unwrap();
                     }
                 }
@@ -131,5 +130,4 @@ impl crate::Nscope {
             }
         }
     }
-
 }

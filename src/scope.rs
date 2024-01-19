@@ -14,6 +14,7 @@ use std::error::Error;
 use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::Sender;
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 use hidapi::HidDevice;
 
@@ -89,8 +90,11 @@ impl Nscope {
 
         // Create the communication thread
         let communication_thread = thread::Builder::new().name("Communication Thread".to_string());
+
+        let mut is_legacy = false;
         let join_handle = match device_handle {
             NscopeHandle::NscopeLegacy(hid_device) => {
+                is_legacy = true;
                 communication_thread.spawn(move || {
                     Nscope::run_v1(hid_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
@@ -119,8 +123,17 @@ impl Nscope {
         };
 
         // Send the initialization command
-        let _ = scope.command_tx.send(Command::Initialize(power_on));
-        Ok(scope)
+        let (init_tx, init_rx) = mpsc::channel::<()>();
+        if scope.command_tx.send(Command::Initialize(power_on, init_tx)).is_ok() {
+            if is_legacy {
+                return Ok(scope);
+            }
+            // Wait for the response from the backend
+            if let Ok(_) = init_rx.recv_timeout(Duration::from_secs(5)) {
+                return Ok(scope);
+            }
+        }
+        Err("Cannot initialize scope".into())
     }
 
     pub fn is_connected(&self) -> bool {
@@ -138,11 +151,11 @@ impl Nscope {
         }
     }
 
-    #[deprecated(since="1.1.0", note="Please use `version` instead")]
+    #[deprecated(since = "1.1.0", note = "Please use `version` instead")]
     pub fn fw_version(&self) -> Result<u8, Box<dyn Error>> {
         if let Some(full_version) = *self.fw_version.read().unwrap() {
             if (full_version & 0xFF00) != 0 {
-                return Err("Connected to nScope v2 or newer, use scope.version() to read".into())
+                return Err("Connected to nScope v2 or newer, use scope.version() to read".into());
             }
             return Ok(full_version as u8);
         }

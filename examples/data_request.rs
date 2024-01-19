@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     nscope.a1.turn_on();
 
-    let sweep_handle = nscope.request(4.0, 20, None);
+    let sweep_handle = nscope.request(8000.0, 19200, None);
 
     for sample in sweep_handle.receiver {
         println!("{:?}", sample.data);
@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     nscope.a1.turn_off();
     
     
-    let sweep_handle = nscope.request(4.0, 20, Some(Trigger{
+    let sweep_handle = nscope.request(8000.0, 19200, Some(Trigger{
         is_enabled: true,
         trigger_type: TriggerType::RisingEdge,
         source_channel: 0,
