@@ -88,7 +88,7 @@ impl Command {
             Command::SetAnalogOutput(cmd) => { cmd.handle_rx(buffer) }
             Command::SetPulseOutput(cmd) => { cmd.handle_rx(buffer) }
             Command::RequestData(cmd) => { cmd.handle_rx(buffer) }
-            Command::StopData => {}
+            Command::StopData => {  }
         }
     }
 

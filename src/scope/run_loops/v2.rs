@@ -109,6 +109,12 @@ impl crate::Nscope {
 
                         // If the command has finished it's work
                         if command.is_finished() {
+                            if let Command::StopData = command {
+                                if let Some(active_data_request_id) = active_data_request {
+                                    active_requests_map.remove(&active_data_request_id);
+                                    active_data_request = None;
+                                }
+                            }
                             active_requests_map.remove(&request_id);
                             trace!("Finished request ID: {}", request_id);
                         } else {
@@ -148,6 +154,8 @@ impl crate::Nscope {
 
             }
 
+
+            // If we received data on any incoming channel, collate any results
             if received_ch_data {
                 if let Some(request_id) = active_data_request {
                     if let Some(Command::RequestData(data_request)) = active_requests_map.get(&request_id) {

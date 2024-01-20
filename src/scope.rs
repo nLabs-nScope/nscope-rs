@@ -112,10 +112,10 @@ impl Nscope {
             a2: AnalogOutput::create(command_tx.clone(), 1),
             p1: PulseOutput::create(command_tx.clone(), 0),
             p2: PulseOutput::create(command_tx.clone(), 1),
-            ch1: AnalogInput::default(),
-            ch2: AnalogInput::default(),
-            ch3: AnalogInput::default(),
-            ch4: AnalogInput::default(),
+            ch1: AnalogInput::create(is_legacy),
+            ch2: AnalogInput::create(is_legacy),
+            ch3: AnalogInput::create(is_legacy),
+            ch4: AnalogInput::create(is_legacy),
             fw_version,
             power_status,
             command_tx,
@@ -129,7 +129,7 @@ impl Nscope {
                 return Ok(scope);
             }
             // Wait for the response from the backend
-            if let Ok(_) = init_rx.recv_timeout(Duration::from_secs(5)) {
+            if init_rx.recv_timeout(Duration::from_secs(5)).is_ok() {
                 return Ok(scope);
             }
         }
