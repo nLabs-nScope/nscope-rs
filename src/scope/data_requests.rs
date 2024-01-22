@@ -160,7 +160,7 @@ impl ScopeCommand for DataRequest {
     }
 
     fn fill_tx_buffer(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
-        let samples_between_records: u32 = (400_000.0 / self.sample_rate_hz) as u32;
+        let samples_between_records: u32 = (2_000_000.0 / self.sample_rate_hz) as u32;
 
         let total_samples = *self.remaining_samples.read().unwrap();
         trace!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
@@ -273,7 +273,6 @@ impl DataRequest {
                     if channel.is_on {
                         let data = input_buffer.pop_front().unwrap();
                         sample.data[ch] = Some(channel.voltage_from_measurement(data));
-                        trace!("Ch{}: ADCData: {} Vi: {}", ch+1, data, channel.voltage_from_measurement(data));
                     }
                 }
                 self.sender.send(sample).unwrap();
