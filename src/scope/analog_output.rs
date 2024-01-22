@@ -38,8 +38,8 @@ impl FromStr for AnalogWaveType {
 /// Possible analog output polarities
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AnalogSignalPolarity {
-    Unipolar,
-    Bipolar,
+    Unipolar = 0,
+    Bipolar = 1,
 }
 
 impl FromStr for AnalogSignalPolarity {
@@ -73,7 +73,6 @@ pub struct AnalogOutput {
 
 impl AnalogOutput {
     pub(super) fn create(cmd_tx: Sender<Command>, ax_channel: usize) -> Self {
-
         let default_state = AnalogOutputState {
             is_on: false,
             frequency: 1.0,
@@ -105,12 +104,14 @@ impl AnalogOutput {
         });
 
         // Send the command to the backend
-        self.command_tx.send(command).unwrap();
+        if self.command_tx.send(command).is_ok() {
 
-        // Wait for the response from the backend
-        let response_state = rx.recv().unwrap();
-        // Write the response state
-        *self.state.write().unwrap() = response_state;
+            // Wait for the response from the backend
+            if let Ok(response_state) = rx.recv() {
+                // Write the response state
+                *self.state.write().unwrap() = response_state;
+            }
+        }
     }
 
     pub fn is_on(&self) -> bool {
@@ -168,14 +169,14 @@ impl AnalogOutput {
 
 
 #[derive(Debug)]
-pub(super) struct AxRequest {
+pub(crate) struct AxRequest {
     channel: usize,
     ax_state: AnalogOutputState,
     sender: Sender<AnalogOutputState>,
 }
 
 impl ScopeCommand for AxRequest {
-    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
+    fn fill_tx_buffer_legacy(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
         usb_buf[1] = 0x02;
 
         let i_ch = 3 + 10 * self.channel;
@@ -217,6 +218,27 @@ impl ScopeCommand for AxRequest {
             usb_buf[i_ch] = 0xFF;
         }
         Ok(())
+    }
+
+    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+        // Set the channel of interest
+        usb_buf[3] = 0x1 << self.channel;
+
+        let idx_start = 4 + 12 * self.channel;
+
+        usb_buf[idx_start] = self.ax_state.is_on as u8;
+        usb_buf[idx_start + 1..=idx_start + 4].copy_from_slice(
+            &(self.ax_state.frequency as f32).to_le_bytes());
+        usb_buf[idx_start + 5..=idx_start + 8].copy_from_slice(
+            &(self.ax_state.amplitude as f32).to_le_bytes());
+        usb_buf[idx_start + 9] = self.ax_state.wave_type as u8;
+        usb_buf[idx_start + 10] = self.ax_state.polarity as u8;
+
+        Ok(())
+    }
+
+    fn handle_rx_legacy(&self, _usb_buf: &[u8; 64]) {
+        self.sender.send(self.ax_state).unwrap();
     }
 
     fn handle_rx(&self, _usb_buf: &[u8; 64]) {

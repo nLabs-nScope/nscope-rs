@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="List All nScopes" type="CargoCommandRunConfiguration" factoryName="Cargo Command" folderName="Examples">
-    <option name="command" value="run --example list_all_nscopes" />
+  <configuration default="false" name="Update Firmware" type="CargoCommandRunConfiguration" factoryName="Cargo Command" folderName="Examples">
+    <option name="command" value="run --example update_firmware" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="emulateTerminal" value="false" />
     <option name="channel" value="DEFAULT" />

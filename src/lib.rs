@@ -54,6 +54,7 @@
 mod lab_bench;
 mod scope;
 mod version;
+mod firmware;
 
 pub use lab_bench::LabBench;
 pub use lab_bench::NscopeLink;

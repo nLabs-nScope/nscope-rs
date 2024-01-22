@@ -8,6 +8,7 @@
  *
  **************************************************************************************************/
 
+use std::collections::VecDeque;
 use std::error::Error;
 use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
@@ -36,13 +37,15 @@ impl Sample {
 }
 
 #[derive(Debug)]
-pub(super) struct DataRequest {
+pub(crate) struct DataRequest {
     pub channels: [AnalogInput; 4],
     pub sample_rate_hz: f64,
     pub remaining_samples: Arc<RwLock<u32>>,
     pub trigger: Trigger,
     pub sender: Sender<Sample>,
     pub stop_recv: Receiver<()>,
+
+    data_collator: Arc<RwLock<[VecDeque<u16>; 4]>>,
 }
 
 /// Handle to an ongoing data sweep, holds received data from nScope
@@ -52,9 +55,6 @@ pub struct SweepHandle {
     samples_remaining: Arc<RwLock<u32>>,
     stop_send: Sender<()>,
 }
-
-#[derive(Debug)]
-pub(super) struct StopRequest {}
 
 impl Nscope {
     pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32, trigger: Option<Trigger>) -> SweepHandle {
@@ -69,9 +69,12 @@ impl Nscope {
             trigger: trigger.unwrap_or_default(),
             sender: tx,
             stop_recv,
+            data_collator: Default::default(),
         });
 
-        self.command_tx.send(command).unwrap();
+        if self.command_tx.send(command).is_err() {
+            *remaining_samples.write().unwrap() = 0;
+        }
 
         SweepHandle {
             receiver: rx,
@@ -92,7 +95,7 @@ impl SweepHandle {
 }
 
 impl ScopeCommand for DataRequest {
-    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
+    fn fill_tx_buffer_legacy(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
         usb_buf[1] = 0x08;
 
         let num_channels_on = self.channels.iter().filter(|&ch| ch.is_on).count();
@@ -145,8 +148,8 @@ impl ScopeCommand for DataRequest {
 
         for (i, ch) in self.channels.iter().enumerate() {
             if ch.is_on {
-                usb_buf[15 + i] = ch.gain_setting;
-                usb_buf[19 + i] = ch.offset_setting;
+                usb_buf[15 + i] = ch.gain_cmd();
+                usb_buf[19 + i] = ch.offset_cmd();
             } else {
                 usb_buf[15 + i] = 0xFF;
             }
@@ -156,7 +159,33 @@ impl ScopeCommand for DataRequest {
         Ok(())
     }
 
-    fn handle_rx(&self, usb_buf: &[u8; 64]) {
+    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+        let samples_between_records: u32 = (2_000_000.0 / self.sample_rate_hz) as u32;
+
+        let total_samples = *self.remaining_samples.read().unwrap();
+        trace!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
+        if samples_between_records < 25 && total_samples > 2400 {
+            return Err("Data not recordable".into());
+        }
+
+        usb_buf[2..6].copy_from_slice(&samples_between_records.to_le_bytes());
+        usb_buf[6..10].copy_from_slice(&total_samples.to_le_bytes());
+
+        // Fill bytes 10-13 with the channel gains (or 0xFF to indicate off)
+        for (i, ch) in self.channels.iter().enumerate() {
+            if ch.is_on {
+                usb_buf[10 + i] = ch.gain_cmd();
+                // usb_buf[14 + i] = ch.offset_setting;
+            } else {
+                usb_buf[10 + i] = 0xFF;
+            }
+        }
+
+        Ok(())
+    }
+
+
+    fn handle_rx_legacy(&self, usb_buf: &[u8; 64]) {
         let number_received_samples = usb_buf[3] as u32;
 
         {
@@ -193,17 +222,69 @@ impl ScopeCommand for DataRequest {
             self.sender.send(sample).unwrap();
         }
     }
+    fn handle_rx(&self, _usb_buf: &[u8; 64]) {}
 
     fn is_finished(&self) -> bool {
         *self.remaining_samples.read().unwrap() == 0
     }
 }
 
-impl ScopeCommand for StopRequest {
-    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
-        usb_buf[1] = 0x05;
-        Ok(())
+
+impl DataRequest {
+    pub(crate) fn handle_incoming_data(&self, usb_buf: &[u8; 64], channel: usize) {
+        let num_received = usb_buf[0] as usize;
+        let mut num_parsed: usize = 0;
+        while num_parsed < num_received {
+            let byte: usize = 1 + num_parsed / 2 * 3;
+
+            let adc_data = match num_parsed % 2 {
+                0 => usb_buf[byte] as u16 | ((usb_buf[byte + 1] & 0xF) as u16) << 8,
+                1 => usb_buf[byte + 1] as u16 >> 4 | (usb_buf[byte + 2] as u16) << 4,
+                _ => panic!("Unexpected behavior of odd/even bitmask")
+            };
+
+            self.data_collator.write().unwrap()[channel].push_back(adc_data);
+            num_parsed += 1;
+        }
     }
-    fn handle_rx(&self, _usb_buf: &[u8; 64]) {}
-    fn is_finished(&self) -> bool { true }
+
+    pub(crate) fn collate_results(&self) {
+        let data_collator = &mut *self.data_collator.write().unwrap();
+
+        // Find the number of samples received for all channels that are on using filter and map
+        let received_samples = data_collator
+            .iter()
+            .enumerate()
+            .filter(|&(ch, _)| self.channels[ch].is_on)
+            .map(|(_, collator_channel)| collator_channel.len())
+            .collect::<Vec<usize>>();
+
+        if let Some(&complete_samples) = received_samples.iter().min() {
+            let mut samples_to_pop = complete_samples;
+            while samples_to_pop > 0 {
+                let mut sample = Sample {
+                    time_since_start: 0.0,
+                    data: [None; 4],
+                };
+
+                for (ch, input_buffer) in data_collator.iter_mut().enumerate() {
+                    let channel = &self.channels[ch];
+
+                    if channel.is_on {
+                        let data = input_buffer.pop_front().unwrap();
+                        sample.data[ch] = Some(channel.voltage_from_measurement(data));
+                    }
+                }
+                self.sender.send(sample).unwrap();
+                samples_to_pop -= 1;
+            }
+
+
+            if complete_samples > 0 {
+                let mut remaining_samples = self.remaining_samples.write().unwrap();
+                *remaining_samples -= complete_samples as u32;
+                trace!("Received {} samples, {} samples remaining", complete_samples, remaining_samples);
+            }
+        }
+    }
 }

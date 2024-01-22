@@ -18,11 +18,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let bench = LabBench::new()?;
 
     // Print the bench to show a list of detected nScopes
-    println!("{:?}", bench);
+    println!("Lab Bench: \n{:?}", bench);
 
+    println!("\nManual list of all detected nScopes:");
     // Or loop over all nScope links in the list and print them
     for nscope_link in bench.list() {
-        println!("{:?}", nscope_link)
+        println!("    {:?}", nscope_link)
     }
     Ok(())
 }

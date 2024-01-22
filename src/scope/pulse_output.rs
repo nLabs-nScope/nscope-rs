@@ -100,12 +100,14 @@ impl PulseOutput {
         });
 
         // Send the command to the backend
-        self.command_tx.send(command).unwrap();
+        if self.command_tx.send(command).is_ok() {
 
-        // Wait for the response from the backend
-        let response_state = rx.recv().unwrap();
-        // Write the response state
-        *self.state.write().unwrap() = response_state;
+            // Wait for the response from the backend
+            if let Ok(response_state) = rx.recv() {
+                // Write the response state
+                *self.state.write().unwrap() = response_state;
+            }
+        }
     }
 
     pub fn is_on(&self) -> bool {
@@ -175,14 +177,14 @@ fn get_registers(pulse_output: &PulseOutputState) -> Result<(u8, u32, u32), Box<
 }
 
 #[derive(Debug)]
-pub(super) struct PxRequest {
+pub(crate) struct PxRequest {
     channel: usize,
     px_state: PulseOutputState,
     sender: Sender<PulseOutputState>,
 }
 
 impl ScopeCommand for PxRequest {
-    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
+    fn fill_tx_buffer_legacy(&self, usb_buf: &mut [u8; 65]) -> Result<(), Box<dyn Error>> {
         usb_buf[1] = 0x01;
 
         let i_ch = 3 + 10 * self.channel;
@@ -197,6 +199,25 @@ impl ScopeCommand for PxRequest {
         }
 
         Ok(())
+    }
+
+    fn fill_tx_buffer(&self, usb_buf: &mut [u8; 64]) -> Result<(), Box<dyn Error>> {
+        // Set the channel of interest
+        usb_buf[3] = 0x1 << self.channel;
+
+
+        let idx_start = 4 + 12 * self.channel;
+        usb_buf[idx_start] = self.px_state.is_on as u8;
+        usb_buf[idx_start + 1..=idx_start + 4].copy_from_slice(
+            &(self.px_state.frequency as f32).to_le_bytes());
+        usb_buf[idx_start + 5..=idx_start + 8].copy_from_slice(
+            &(self.px_state.duty as f32).to_le_bytes());
+
+        Ok(())
+    }
+
+    fn handle_rx_legacy(&self, _usb_buf: &[u8; 64]) {
+        self.sender.send(self.px_state).unwrap();
     }
 
     fn handle_rx(&self, _usb_buf: &[u8; 64]) {
