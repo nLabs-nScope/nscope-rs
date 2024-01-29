@@ -26,12 +26,14 @@ impl crate::Nscope {
         'communication: loop {
             // Check first to see if we have a cancelled active request
             if let Some(id) = &active_data_request {
+                trace!("Active data request  is {}", id);
                 // We have an active request id
                 if let Command::RequestData(rq) = active_requests_map.get(id).unwrap() {
                     // we get the active request
                     if let Ok(()) = rq.stop_recv.try_recv() {
                         // We have received a stop signal
                         command_tx.send(Command::StopData).unwrap();
+                        trace!("Sent a stop command to request {}", id);
                     }
                 }
             }
@@ -132,26 +134,27 @@ impl crate::Nscope {
 
             let mut received_ch_data = false;
 
-            for (ch, &ep) in [0x82u8, 0x83u8, 0x84u8, 0x85u8].iter().enumerate() {
-                let buf = &mut incoming_channel_buffers[ch];
+            if let Some(request_id) = active_data_request {
+                if let Some(Command::RequestData(data_request)) = active_requests_map.get(&request_id) {
 
-                match usb_device.read_bulk(ep, buf, Duration::from_millis(1))
-                {
-                    Err(rusb::Error::Timeout) => {}
-                    Ok(_) => {
-                        if let Some(request_id) = active_data_request {
-                            if let Some(Command::RequestData(data_request)) = active_requests_map.get(&request_id) {
-                                data_request.handle_incoming_data(buf, ch);
-                                received_ch_data = true;
+                    for (ch, &ep) in [0x82u8, 0x83u8, 0x84u8, 0x85u8].iter().enumerate() {
+                        let buf = &mut incoming_channel_buffers[ch];
+                        if data_request.channels[ch].is_on {
+                            match usb_device.read_bulk(ep, buf, Duration::from_millis(1))
+                            {
+                                Err(rusb::Error::Timeout) => {}
+                                Ok(_) => {
+                                    data_request.handle_incoming_data(buf, ch);
+                                    received_ch_data = true;
+                                }
+                                Err(error) => {
+                                    error!("USB read error: {:?}", error);
+                                    break 'communication;
+                                }
                             }
                         }
                     }
-                    Err(error) => {
-                        error!("USB read error: {:?}", error);
-                        break 'communication;
-                    }
                 }
-
             }
 
 
