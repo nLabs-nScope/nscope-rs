@@ -32,6 +32,7 @@ impl crate::Nscope {
                     if let Ok(()) = rq.stop_recv.try_recv() {
                         // We have received a stop signal
                         command_tx.send(Command::StopData).unwrap();
+                        trace!("Sent a stop command to request {}", id);
                     }
                 }
             }
@@ -132,26 +133,30 @@ impl crate::Nscope {
 
             let mut received_ch_data = false;
 
-            for (ch, &ep) in [0x82u8, 0x83u8, 0x84u8, 0x85u8].iter().enumerate() {
-                let buf = &mut incoming_channel_buffers[ch];
-
-                match usb_device.read_bulk(ep, buf, Duration::from_millis(1))
-                {
-                    Err(rusb::Error::Timeout) => {}
-                    Ok(_) => {
-                        if let Some(request_id) = active_data_request {
-                            if let Some(Command::RequestData(data_request)) = active_requests_map.get(&request_id) {
-                                data_request.handle_incoming_data(buf, ch);
-                                received_ch_data = true;
+            if let Some(request_id) = active_data_request {
+                if let Some(Command::RequestData(data_request)) = active_requests_map.get(&request_id) {
+                    for (ch, &ep) in [0x82u8, 0x83u8, 0x84u8, 0x85u8].iter().enumerate() {
+                        let buf = &mut incoming_channel_buffers[ch];
+                        if data_request.channels[ch].is_on {
+                            match usb_device.read_bulk(ep, buf, Duration::from_millis(1))
+                            {
+                                Err(rusb::Error::Timeout) => {}
+                                Ok(_) => {
+                                    let received_request_id = buf[0];
+                                    trace!("Received data for request {}, active request {}", received_request_id, request_id);
+                                    if received_request_id == request_id {
+                                        data_request.handle_incoming_data(buf, ch);
+                                        received_ch_data = true;
+                                    }
+                                }
+                                Err(error) => {
+                                    error!("USB read error: {:?}", error);
+                                    break 'communication;
+                                }
                             }
                         }
                     }
-                    Err(error) => {
-                        error!("USB read error: {:?}", error);
-                        break 'communication;
-                    }
                 }
-
             }
 
 

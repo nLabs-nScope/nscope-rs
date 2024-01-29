@@ -232,17 +232,16 @@ impl ScopeCommand for DataRequest {
 
 impl DataRequest {
     pub(crate) fn handle_incoming_data(&self, usb_buf: &[u8; 64], channel: usize) {
-        let num_received = usb_buf[0] as usize;
+        let num_received = usb_buf[1] as usize;
         let mut num_parsed: usize = 0;
         while num_parsed < num_received {
-            let byte: usize = 1 + num_parsed / 2 * 3;
+            let byte: usize = 4 + num_parsed / 2 * 3;
 
             let adc_data = match num_parsed % 2 {
                 0 => usb_buf[byte] as u16 | ((usb_buf[byte + 1] & 0xF) as u16) << 8,
                 1 => usb_buf[byte + 1] as u16 >> 4 | (usb_buf[byte + 2] as u16) << 4,
                 _ => panic!("Unexpected behavior of odd/even bitmask")
             };
-
             self.data_collator.write().unwrap()[channel].push_back(adc_data);
             num_parsed += 1;
         }
