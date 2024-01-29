@@ -26,7 +26,6 @@ impl crate::Nscope {
         'communication: loop {
             // Check first to see if we have a cancelled active request
             if let Some(id) = &active_data_request {
-                trace!("Active data request  is {}", id);
                 // We have an active request id
                 if let Command::RequestData(rq) = active_requests_map.get(id).unwrap() {
                     // we get the active request
@@ -136,7 +135,6 @@ impl crate::Nscope {
 
             if let Some(request_id) = active_data_request {
                 if let Some(Command::RequestData(data_request)) = active_requests_map.get(&request_id) {
-
                     for (ch, &ep) in [0x82u8, 0x83u8, 0x84u8, 0x85u8].iter().enumerate() {
                         let buf = &mut incoming_channel_buffers[ch];
                         if data_request.channels[ch].is_on {
@@ -144,8 +142,12 @@ impl crate::Nscope {
                             {
                                 Err(rusb::Error::Timeout) => {}
                                 Ok(_) => {
-                                    data_request.handle_incoming_data(buf, ch);
-                                    received_ch_data = true;
+                                    let received_request_id = buf[0];
+                                    trace!("Received data for request {}, active request {}", received_request_id, request_id);
+                                    if received_request_id == request_id {
+                                        data_request.handle_incoming_data(buf, ch);
+                                        received_ch_data = true;
+                                    }
                                 }
                                 Err(error) => {
                                     error!("USB read error: {:?}", error);
