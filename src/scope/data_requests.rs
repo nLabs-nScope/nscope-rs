@@ -182,7 +182,7 @@ impl ScopeCommand for DataRequest {
         }
 
         // Fill trigger bytes
-        // 14: source type
+        // 14: trigger type
         // 15: source channel
         // 16-17: trigger level
         // 18-21: trigger delay
@@ -203,7 +203,9 @@ impl ScopeCommand for DataRequest {
             let trigger_level = trigger_level as u16;
 
             usb_buf[16..=17].copy_from_slice(&trigger_level.to_le_bytes());
-            usb_buf[18..=21].copy_from_slice(&self.trigger.trigger_delay_us.to_le_bytes());
+
+            let trigger_delay = 2 * self.trigger.trigger_delay_us / samples_between_records;
+            usb_buf[18..=21].copy_from_slice(&trigger_delay.to_le_bytes());
         } else {
             usb_buf[14..=21].fill(0);
         }
