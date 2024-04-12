@@ -56,6 +56,8 @@ mod scope;
 mod version;
 mod firmware;
 
+mod python;
+
 pub use lab_bench::LabBench;
 pub use lab_bench::NscopeLink;
 pub use scope::Nscope;

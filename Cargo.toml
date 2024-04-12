@@ -12,6 +12,10 @@ documentation = "https://github.com/nLabs-nScope/nscope-rs"
 readme = "README.md"
 edition = "2018"
 
+[lib]
+name = "nscope"
+crate-type = ["cdylib"]
+
 [dependencies]
 git-version = "0.3.4"
 hidapi = "2.3.3"
@@ -19,6 +23,7 @@ log = "~0.4"
 regex = "~1"
 rusb = "0.9.3"
 dfu-libusb = "0.5.1"
+pyo3 = "0.20.0"
 
 [dev-dependencies]
 env_logger = "0.10.0"
