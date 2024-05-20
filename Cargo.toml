@@ -14,7 +14,7 @@ edition = "2018"
 
 [lib]
 name = "nscope"
-crate-type = ["cdylib"]
+crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 git-version = "0.3.4"
