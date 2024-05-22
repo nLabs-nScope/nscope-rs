@@ -1,9 +1,10 @@
 mod bench;
 mod scope;
+mod analog_output;
+mod pulse_output;
 
-use pyo3::exceptions::*;
 use pyo3::prelude::*;
-use pyo3::types::*;
+use crate::{AnalogSignalPolarity, AnalogWaveType};
 
 #[pyclass]
 struct LabBench(crate::LabBench);
@@ -13,8 +14,10 @@ struct Nscope(crate::Nscope);
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn nscope(_py: Python, m: &PyModule) -> PyResult<()> {
+fn nscope(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<LabBench>()?;
     m.add_class::<Nscope>()?;
+    m.add_class::<AnalogWaveType>()?;
+    m.add_class::<AnalogSignalPolarity>()?;
     Ok(())
 }
