@@ -12,6 +12,7 @@ use std::error::Error;
 use std::str::FromStr;
 use std::sync::{mpsc, RwLock};
 use std::sync::mpsc::Sender;
+use pyo3::pyclass;
 
 use crate::scope::commands::ScopeCommand;
 
@@ -19,6 +20,7 @@ use super::commands::Command;
 
 /// Possible analog output signal types
 #[derive(Debug, PartialEq, Copy, Clone)]
+#[pyclass]
 pub enum AnalogWaveType {
     Sine = 0,
     Triangle = 1,
@@ -37,6 +39,7 @@ impl FromStr for AnalogWaveType {
 
 /// Possible analog output polarities
 #[derive(Debug, PartialEq, Copy, Clone)]
+#[pyclass]
 pub enum AnalogSignalPolarity {
     Unipolar = 0,
     Bipolar = 1,
