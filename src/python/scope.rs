@@ -1,6 +1,5 @@
-use pyo3::exceptions::*;
 use pyo3::prelude::*;
-use pyo3::types::*;
+
 use crate::python;
 
 #[pymethods]
@@ -9,4 +8,5 @@ impl python::Nscope {
         let scope: &crate::Nscope = &self.0;
         scope.is_connected()
     }
+
 }
