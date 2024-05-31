@@ -5,6 +5,8 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
+
 
 jobs:
   linux:
@@ -31,7 +33,7 @@ jobs:
 
     steps:
       - name: install dependencies
-        run: rustup component add clippy --toolchain stable-x86_64-apple-darwin
+        run: rustup component add clippy --toolchain stable-aarch64-apple-darwin
       - name: checkout
         uses: actions/checkout@v2
         with:
