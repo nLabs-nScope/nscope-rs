@@ -9,12 +9,16 @@
  **************************************************************************************************/
 
 use std::io;
+use pyo3::{pyclass, pymethods};
 use super::Nscope;
 
 /// Information about the power supply status of nScope
 #[derive(Debug, Copy, Clone)]
+#[pyclass]
 pub struct PowerStatus {
+    #[pyo3(get)]
     pub state: PowerState,
+    #[pyo3(get)]
     pub usage: f64,
 }
 
@@ -27,8 +31,16 @@ impl Default for PowerStatus {
     }
 }
 
+#[pymethods]
+impl PowerStatus {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 /// Possible states of the nScope power supply
 #[derive(Debug, PartialEq, Copy, Clone)]
+#[pyclass]
 pub enum PowerState {
     PowerOff,
     PowerOn,

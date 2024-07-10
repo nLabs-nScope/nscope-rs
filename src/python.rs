@@ -4,10 +4,10 @@ mod analog_output;
 mod pulse_output;
 
 use pyo3::prelude::*;
-use crate::{AnalogSignalPolarity, AnalogWaveType};
+use crate::{AnalogSignalPolarity, AnalogWaveType, PowerStatus, PowerState};
 
 #[pyclass]
-struct LabBench(crate::LabBench);
+struct LabBench;
 
 #[pyclass]
 struct Nscope(crate::Nscope);
@@ -19,5 +19,7 @@ fn nscope(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Nscope>()?;
     m.add_class::<AnalogWaveType>()?;
     m.add_class::<AnalogSignalPolarity>()?;
+    m.add_class::<PowerState>()?;
+    m.add_class::<PowerStatus>()?;
     Ok(())
 }
