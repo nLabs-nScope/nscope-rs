@@ -34,7 +34,7 @@ impl crate::Nscope {
                     }
                 }
             }
-            
+
             if active_comms_request.is_none() {
                 if let Ok(command) = command_rx.try_recv() {
                     // If we have a command from the front-end, assign a new requestID
@@ -100,7 +100,7 @@ impl crate::Nscope {
                     power_status.write().unwrap().usage = response.power_usage as f64 / 1000.0 * 5.0;
 
                     if response.request_id == 0 {
-                        // trace!("Received a status update from nScope");
+                        trace!("Received a status update from nScope");
                     } else if let Some((id, command)) = &active_comms_request {
                         // If we have an active request with this ID
                         if *id == response.request_id {
