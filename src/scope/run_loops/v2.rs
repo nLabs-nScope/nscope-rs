@@ -24,14 +24,12 @@ impl crate::Nscope {
 
         'communication: loop {
             // Check first to see if we have a cancelled active request
-            if let Some((id, cmd)) = &active_data_request {
-                if let Command::RequestData(rq) = cmd {
-                    // we get the active request
-                    if let Ok(()) = rq.stop_recv.try_recv() {
-                        // We have received a stop signal
-                        command_tx.send(Command::StopData).unwrap();
-                        trace!("Sent a stop command to request {}", id);
-                    }
+            if let Some((id, Command::RequestData(rq))) = &active_data_request {
+                // we get the active request
+                if let Ok(()) = rq.stop_recv.try_recv() {
+                    // We have received a stop signal
+                    command_tx.send(Command::StopData).unwrap();
+                    trace!("Sent a stop command to request {}", id);
                 }
             }
 
@@ -137,26 +135,24 @@ impl crate::Nscope {
 
             let mut received_ch_data = false;
 
-            if let Some((request_id, command)) = &active_data_request {
-                if let Command::RequestData(data_request) = command {
-                    for (ch, &ep) in [0x82u8, 0x83u8, 0x84u8, 0x85u8].iter().enumerate() {
-                        let buf = &mut incoming_channel_buffers[ch];
-                        if data_request.channels[ch].is_on {
-                            match usb_device.read_bulk(ep, buf, Duration::from_millis(1))
-                            {
-                                Err(rusb::Error::Timeout) => {}
-                                Ok(_) => {
-                                    let received_request_id = buf[0];
-                                    trace!("Received data for request {}, active request {}", received_request_id, request_id);
-                                    if received_request_id == *request_id {
-                                        data_request.handle_incoming_data(buf, ch);
-                                        received_ch_data = true;
-                                    }
+            if let Some((request_id, Command::RequestData(data_request))) = &active_data_request {
+                for (ch, &ep) in [0x82u8, 0x83u8, 0x84u8, 0x85u8].iter().enumerate() {
+                    let buf = &mut incoming_channel_buffers[ch];
+                    if data_request.channels[ch].is_on {
+                        match usb_device.read_bulk(ep, buf, Duration::from_millis(1))
+                        {
+                            Err(rusb::Error::Timeout) => {}
+                            Ok(_) => {
+                                let received_request_id = buf[0];
+                                trace!("Received data for request {}, active request {}", received_request_id, request_id);
+                                if received_request_id == *request_id {
+                                    data_request.handle_incoming_data(buf, ch);
+                                    received_ch_data = true;
                                 }
-                                Err(error) => {
-                                    error!("USB read error: {:?}", error);
-                                    break 'communication;
-                                }
+                            }
+                            Err(error) => {
+                                error!("USB read error: {:?}", error);
+                                break 'communication;
                             }
                         }
                     }
@@ -166,14 +162,11 @@ impl crate::Nscope {
 
             // If we received data on any incoming channel, collate any results
             if received_ch_data {
-                if let Some((request_id, command)) = &active_data_request {
-                    if let Command::RequestData(data_request) = command {
-                        data_request.collate_results();
-
-                        if data_request.is_finished() {
-                            trace!("Finished request ID: {}", request_id);
-                            active_data_request = None;
-                        }
+                if let Some((request_id, Command::RequestData(data_request))) = &active_data_request {
+                    data_request.collate_results();
+                    if data_request.is_finished() {
+                        trace!("Finished request ID: {}", request_id);
+                        active_data_request = None;
                     }
                 }
             }
