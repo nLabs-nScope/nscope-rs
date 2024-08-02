@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
-use log::{error, trace};
+use log::{error, trace, debug};
 use rusb::DeviceHandle;
 use crate::PowerStatus;
 use crate::scope::commands::{Command, ScopeCommand};
@@ -29,7 +29,7 @@ impl crate::Nscope {
                 if let Ok(()) = rq.stop_recv.try_recv() {
                     // We have received a stop signal
                     command_tx.send(Command::StopData).unwrap();
-                    trace!("Sent a stop command to request {}", id);
+                    debug!("Sent a stop command to request {}", id);
                 }
             }
 
@@ -46,7 +46,7 @@ impl crate::Nscope {
 
                     outgoing_usb_buffer[0] = request_id;
                     outgoing_usb_buffer[1] = command.id_byte();
-                    trace!("Sent request {}: command: {}", request_id, command.id_byte());
+                    debug!("Sent request {}: command: {}", request_id, command.id_byte());
 
                     // Fill the outgoing buffer with whatever we need
                     match &command {
@@ -108,16 +108,16 @@ impl crate::Nscope {
 
                             // If the command has finished it's work
                             if command.is_finished() {
-                                trace!("Finished request ID: {}", request_id);
+                                debug!("Finished request ID: {}", request_id);
                                 if let Command::StopData = command {
                                     active_data_request = None;
                                 }
                             } else {
-                                trace!("Received request ID: {}", request_id);
+                                debug!("Received request ID: {}", request_id);
                             }
 
                             if let Command::RequestData(_) = command {
-                                trace!("Setting Active Data Request: {}", request_id);
+                                debug!("Setting Active Data Request: {}", request_id);
                                 active_data_request = active_comms_request.take();
                             } else {
                                 active_comms_request = None;
@@ -144,7 +144,7 @@ impl crate::Nscope {
                             Err(rusb::Error::Timeout) => {}
                             Ok(_) => {
                                 let received_request_id = buf[0];
-                                trace!("Received data for request {}, active request {}", received_request_id, request_id);
+                                debug!("Received data for request {}, active request {}", received_request_id, request_id);
                                 if received_request_id == *request_id {
                                     data_request.handle_incoming_data(buf, ch);
                                     received_ch_data = true;
@@ -165,7 +165,7 @@ impl crate::Nscope {
                 if let Some((request_id, Command::RequestData(data_request))) = &active_data_request {
                     data_request.collate_results();
                     if data_request.is_finished() {
-                        trace!("Finished request ID: {}", request_id);
+                        debug!("Finished request ID: {}", request_id);
                         active_data_request = None;
                     }
                 }

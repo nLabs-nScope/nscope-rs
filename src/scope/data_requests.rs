@@ -13,7 +13,7 @@ use std::error::Error;
 use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
 
-use log::trace;
+use log::{trace, debug};
 
 use super::AnalogInput;
 use super::Command;
@@ -163,7 +163,7 @@ impl ScopeCommand for DataRequest {
         let samples_between_records: u32 = (2_000_000.0 / self.sample_rate_hz) as u32;
 
         let total_samples = *self.remaining_samples.read().unwrap();
-        trace!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
+        debug!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
         if samples_between_records < 25 && total_samples > 2400 {
             return Err("Data not recordable".into());
         }
@@ -205,6 +205,7 @@ impl ScopeCommand for DataRequest {
             usb_buf[16..=17].copy_from_slice(&trigger_level.to_le_bytes());
 
             let trigger_delay = 2 * self.trigger.trigger_delay_us / samples_between_records;
+            debug!("Trigger Delay: {:?}", trigger_delay);
             usb_buf[18..=21].copy_from_slice(&trigger_delay.to_le_bytes());
         } else {
             usb_buf[14..=21].fill(0);
