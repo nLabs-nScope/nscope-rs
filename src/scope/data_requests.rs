@@ -13,7 +13,7 @@ use std::error::Error;
 use std::sync::{Arc, mpsc, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
 
-use log::trace;
+use log::{trace, debug};
 
 use super::AnalogInput;
 use super::Command;
@@ -120,7 +120,7 @@ impl ScopeCommand for DataRequest {
         trace!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
 
         if self.trigger.is_enabled {
-            usb_buf[11] = (self.trigger.source_channel | (self.trigger.trigger_type.value() << 2)) as u8;
+            usb_buf[11] = self.trigger.source_channel as u8 | (self.trigger.trigger_type.value() << 2);
 
             if !(0..4usize).contains(&self.trigger.source_channel) {
                 return Err("Invalid trigger channel".into());
@@ -163,7 +163,7 @@ impl ScopeCommand for DataRequest {
         let samples_between_records: u32 = (2_000_000.0 / self.sample_rate_hz) as u32;
 
         let total_samples = *self.remaining_samples.read().unwrap();
-        trace!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
+        debug!("Requesting {} samples with {} samples between records", total_samples, samples_between_records);
         if samples_between_records < 25 && total_samples > 2400 {
             return Err("Data not recordable".into());
         }
@@ -179,6 +179,36 @@ impl ScopeCommand for DataRequest {
             } else {
                 usb_buf[10 + i] = 0xFF;
             }
+        }
+
+        // Fill trigger bytes
+        // 14: trigger type
+        // 15: source channel
+        // 16-17: trigger level
+        // 18-21: trigger delay
+
+        if self.trigger.is_enabled {
+            if !(0..4usize).contains(&self.trigger.source_channel) {
+                return Err("Invalid trigger channel".into());
+            }
+
+            usb_buf[14] = self.trigger.trigger_type.value();
+            usb_buf[15] = self.trigger.source_channel as u8;
+
+            let trigger_channel = self.channels[self.trigger.source_channel];
+            let trigger_level = trigger_channel.measurement_from_voltage(self.trigger.trigger_level);
+            if !(5..4090).contains(&trigger_level) {
+                return Err("Trigger level is outside operating range of the channel".into());
+            }
+            let trigger_level = trigger_level as u16;
+
+            usb_buf[16..=17].copy_from_slice(&trigger_level.to_le_bytes());
+
+            let trigger_delay = 2 * self.trigger.trigger_delay_us / samples_between_records;
+            debug!("Trigger Delay: {:?}", trigger_delay);
+            usb_buf[18..=21].copy_from_slice(&trigger_delay.to_le_bytes());
+        } else {
+            usb_buf[14..=21].fill(0);
         }
 
         Ok(())

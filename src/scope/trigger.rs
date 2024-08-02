@@ -38,7 +38,7 @@ impl Default for Trigger {
 }
 
 impl TriggerType {
-    pub(crate) fn value(&self) -> usize {
+    pub(crate) fn value(&self) -> u8 {
         match self {
             TriggerType::RisingEdge => { 2 }
             TriggerType::FallingEdge => { 1 }
