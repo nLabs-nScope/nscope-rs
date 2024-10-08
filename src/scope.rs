@@ -17,6 +17,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use hidapi::HidDevice;
+use log::info;
 
 use analog_input::AnalogInput;
 use analog_output::AnalogOutput;
@@ -126,10 +127,12 @@ impl Nscope {
         let (init_tx, init_rx) = mpsc::channel::<()>();
         if scope.command_tx.send(Command::Initialize(power_on, init_tx)).is_ok() {
             if is_legacy {
+                info!("Connected to nScope legacy firmware v{}", scope.version().unwrap() as f64 / 10.0);
                 return Ok(scope);
             }
             // Wait for the response from the backend
             if init_rx.recv_timeout(Duration::from_secs(5)).is_ok() {
+                info!("Connected to nScope firmware 0x{:04X}", scope.version().unwrap());
                 return Ok(scope);
             }
         }

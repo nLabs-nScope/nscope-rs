@@ -21,7 +21,7 @@ git-version = "0.3.4"
 hidapi = "2.3.3"
 log = "~0.4"
 regex = "~1"
-rusb = "0.9.3"
+rusb = { version = "0.9.3", features = ["vendored"] }
 dfu-libusb = "0.5.1"
 pyo3 = { version="0.21.2", features = ["multiple-pymethods"] }
 
