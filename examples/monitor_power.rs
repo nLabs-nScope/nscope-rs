@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut nscopes: Vec<Nscope> = bench.open_all_available();
 
     loop {
-        thread::sleep(time::Duration::from_millis(10));
+        thread::sleep(time::Duration::from_millis(500));
 
         nscopes.retain(|n| n.is_connected());
 
