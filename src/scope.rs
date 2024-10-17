@@ -100,7 +100,7 @@ impl Nscope {
                     Nscope::run_v1(hid_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
             }
-            NscopeHandle::Nscope(mut usb_device) => {
+            NscopeHandle::Nscope(usb_device) => {
                 usb_device.claim_interface(0)?;
                 communication_thread.spawn(move || {
                     Nscope::run_v2(usb_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
