@@ -1,14 +1,14 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
-use crate::scope::Nscope;
+use crate::scope::Nlab;
 use std::{fmt, io};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
@@ -18,7 +18,7 @@ use crate::firmware::{FIRMWARE, FIRMWARE_VERSION};
 #[derive(Clone)]
 pub(crate) struct HidDevice(hidapi::DeviceInfo);
 
-pub(crate) enum NscopeDevice {
+pub(crate) enum NlabDevice {
     HidApiDevice { device: HidDevice, api: Arc<RwLock<hidapi::HidApi>> },
     RusbDevice(rusb::Device<rusb::GlobalContext>),
 }
@@ -45,24 +45,24 @@ impl HidDevice {
 }
 
 
-/// A representation of all the nScopes plugged into a computer
+/// A representation of all the nLabs plugged into a computer
 pub struct LabBench {
     hid_api: Arc<RwLock<hidapi::HidApi>>,
     hid_devices: Vec<HidDevice>,
     rusb_devices: Vec<rusb::Device<rusb::GlobalContext>>,
 }
 
-/// A detected link between the computer and an nScope, used to open and retrieve an nScope
-pub struct NscopeLink {
+/// A detected link between the computer and an nLab, used to open and retrieve an nLab
+pub struct NlabLink {
     pub available: bool,
     pub in_dfu: bool,
     pub needs_update: bool,
-    device: NscopeDevice,
+    device: NlabDevice,
 }
 
 
 impl LabBench {
-    /// Creates a new lab bench, searching the computer for nScope links
+    /// Creates a new lab bench, searching the computer for nLab links
     pub fn new() -> Result<LabBench, Box<dyn Error>> {
         let hid_api = hidapi::HidApi::new()?;
         Ok(LabBench {
@@ -72,7 +72,7 @@ impl LabBench {
         })
     }
 
-    /// Refreshes the list of nScope Links
+    /// Refreshes the list of nLab Links
     pub fn refresh(&mut self) {
         let mut api = self.hid_api.write().unwrap();
         api.refresh_devices().expect("failed to refresh");
@@ -80,51 +80,51 @@ impl LabBench {
         self.rusb_devices = rusb::devices().unwrap().iter().collect();
     }
 
-    /// Returns iterator containing information about detected nScopes plugged into the computer
-    pub fn list(&self) -> impl Iterator<Item=NscopeLink> + '_ {
-        let v1_nscopes = self.hid_devices
+    /// Returns iterator containing information about detected nLabs plugged into the computer
+    pub fn list(&self) -> impl Iterator<Item=NlabLink> + '_ {
+        let v1_nlabs = self.hid_devices
             .iter()
-            .filter_map(move |d| NscopeLink::new(
-                NscopeDevice::HidApiDevice {
+            .filter_map(move |d| NlabLink::new(
+                NlabDevice::HidApiDevice {
                     device: d.clone(),
                     api: Arc::clone(&self.hid_api),
                 }
             ));
 
-        let v2_nscopes = self.rusb_devices
+        let v2_nlabs = self.rusb_devices
             .iter()
-            .filter_map(move |d| NscopeLink::new(
-                NscopeDevice::RusbDevice(d.clone())
+            .filter_map(move |d| NlabLink::new(
+                NlabDevice::RusbDevice(d.clone())
             ));
 
-        v2_nscopes.chain(v1_nscopes)
+        v2_nlabs.chain(v1_nlabs)
     }
 
-    /// Returns a vector containing all nScopes that are available
-    pub fn open_all_available(&self) -> Vec<Nscope> {
+    /// Returns a vector containing all nLabs that are available
+    pub fn open_all_available(&self) -> Vec<Nlab> {
         self.list().filter_map(|nsl| nsl.open(false).ok()).collect()
     }
 
-    /// Returns the first available nScope
-    pub fn open_first_available(&self, power_on: bool) -> Result<Nscope, io::Error> {
+    /// Returns the first available nLab
+    pub fn open_first_available(&self, power_on: bool) -> Result<Nlab, io::Error> {
 
-        // Default error is that we found zero nScopes
-        let mut err = io::Error::new(io::ErrorKind::NotFound, "Cannot find any nScopes");
+        // Default error is that we found zero nLabs
+        let mut err = io::Error::new(io::ErrorKind::NotFound, "Cannot find any nLabs");
 
 
         for nsl in self.list() {
-            if let Ok(nscope) = nsl.open(power_on) {
-                // return the first open nScope
-                return Ok(nscope);
+            if let Ok(nlab) = nsl.open(power_on) {
+                // return the first open nLab
+                return Ok(nlab);
             }
-            // If we've gotten here, then the error is that we cannot open an nScope
-            err = io::Error::new(io::ErrorKind::ConnectionRefused, "Cannot connect to any nScopes");
+            // If we've gotten here, then the error is that we cannot open an nLab
+            err = io::Error::new(io::ErrorKind::ConnectionRefused, "Cannot connect to any nLabs");
         }
         Err(err)
     }
 
-    /// Returns the first nScope that is in DFU mode
-    pub fn get_first_in_dfu(&self) -> Option<NscopeLink> {
+    /// Returns the first nLab that is in DFU mode
+    pub fn get_first_in_dfu(&self) -> Option<NlabLink> {
         for nsl in self.list() {
             if nsl.in_dfu {
                 return Some(nsl)
@@ -133,8 +133,8 @@ impl LabBench {
         None
     }
 
-    /// Returns the first nScope that is available and needs an update
-    pub fn get_first_needing_update(&self) -> Option<NscopeLink> {
+    /// Returns the first nLab that is available and needs an update
+    pub fn get_first_needing_update(&self) -> Option<NlabLink> {
         for nsl in self.list() {
             if nsl.needs_update && nsl.available {
                 return Some(nsl)
@@ -144,11 +144,11 @@ impl LabBench {
     }
 }
 
-impl NscopeLink {
-    fn new(device: NscopeDevice) -> Option<Self> {
+impl NlabLink {
+    fn new(device: NlabDevice) -> Option<Self> {
         match device {
-            NscopeDevice::HidApiDevice { device: info, api } => { NscopeLink::from_hid_device(info, api) }
-            NscopeDevice::RusbDevice(device) => { NscopeLink::from_rusb_device(device) }
+            NlabDevice::HidApiDevice { device: info, api } => { NlabLink::from_hid_device(info, api) }
+            NlabDevice::RusbDevice(device) => { NlabLink::from_rusb_device(device) }
         }
     }
 
@@ -156,11 +156,11 @@ impl NscopeLink {
         if info.vendor_id() == 0x04D8 && info.product_id() == 0xF3F6 {
             let hid_api = api.read().ok()?;
             let available = info.open_device(&hid_api).is_ok();
-            return Some(NscopeLink {
+            return Some(NlabLink {
                 available,
                 in_dfu: false,
                 needs_update: false,
-                device: NscopeDevice::HidApiDevice { device: info.clone(), api: Arc::clone(&api) },
+                device: NlabDevice::HidApiDevice { device: info.clone(), api: Arc::clone(&api) },
             });
         }
         None
@@ -179,18 +179,18 @@ impl NscopeLink {
                         available = true;
                     }
                 }
-                return Some(NscopeLink {
+                return Some(NlabLink {
                     available,
                     in_dfu: false,
                     needs_update: firmware_version != rusb::Version::from_bcd(FIRMWARE_VERSION),
-                    device: NscopeDevice::RusbDevice(device),
+                    device: NlabDevice::RusbDevice(device),
                 });
             } else if device_desc.vendor_id() == 0x0483 && device_desc.product_id() == 0xA4AB {
-                return Some(NscopeLink {
+                return Some(NlabLink {
                     available: false,
                     in_dfu: true,
                     needs_update: false,
-                    device: NscopeDevice::RusbDevice(device),
+                    device: NlabDevice::RusbDevice(device),
                 });
             }
         }
@@ -199,13 +199,13 @@ impl NscopeLink {
 
 
     ///
-    /// Takes an NscopeLink and checks to ensure the device is still connected.
+    /// Takes an NlabLink and checks to ensure the device is still connected.
     ///
-    /// Returns a validated NscopeLink if the device is still connected, otherwise returns None
+    /// Returns a validated NlabLink if the device is still connected, otherwise returns None
     ///
     pub fn validate(self) -> Option<Self> {
         match self.device {
-            NscopeDevice::HidApiDevice { device: info, api } => {
+            NlabDevice::HidApiDevice { device: info, api } => {
                 let detected_devices: Option<Vec<HidDevice>> = match api.write() {
                     Ok(mut hid_api) => {
                         if hid_api.refresh_devices().is_ok() {
@@ -220,17 +220,17 @@ impl NscopeLink {
                 if let Some(device_list) = detected_devices {
                     for device in device_list {
                         if device == info {
-                            return NscopeLink::from_hid_device(device, api);
+                            return NlabLink::from_hid_device(device, api);
                         }
                     }
                 }
                 None
             }
-            NscopeDevice::RusbDevice(existing_device) => {
+            NlabDevice::RusbDevice(existing_device) => {
                 if let Ok(devices) = rusb::devices() {
                     for detected_device in devices.iter() {
                         if existing_device == detected_device {
-                            return NscopeLink::from_rusb_device(detected_device);
+                            return NlabLink::from_rusb_device(detected_device);
                         }
                     }
                 }
@@ -240,32 +240,32 @@ impl NscopeLink {
     }
 
 
-    /// Opens and returns the nScope at the link
+    /// Opens and returns the nLab at the link
     ///
-    /// Fails if the nScope is in DFU mode or needs an update
-    pub fn open(&self, power_on: bool) -> Result<Nscope, Box<dyn Error>> {
+    /// Fails if the nLab is in DFU mode or needs an update
+    pub fn open(&self, power_on: bool) -> Result<Nlab, Box<dyn Error>> {
         if self.in_dfu {
-            return Err("nScope is in DFU mode".into());
+            return Err("nLab is in DFU mode".into());
         }
         if self.needs_update {
-            return Err("nScope needs a firmware update".into());
+            return Err("nLab needs a firmware update".into());
         }
-        Nscope::new(&self.device, power_on)
+        Nlab::new(&self.device, power_on)
     }
 
-    /// Update the nScope at the link
+    /// Update the nLab at the link
     ///
-    /// Fails if the nScope is not in DFU mode
+    /// Fails if the nLab is not in DFU mode
     pub fn update(&self) -> Result<(), Box<dyn Error>> {
         if !self.in_dfu {
-            return Err("nScope is not in DFU mode".into());
+            return Err("nLab is not in DFU mode".into());
         }
 
         match &self.device {
-            NscopeDevice::HidApiDevice { .. } => {
-                return Err("Cannot update nScope v1".into());
+            NlabDevice::HidApiDevice { .. } => {
+                return Err("Cannot update nLab v1".into());
             }
-            NscopeDevice::RusbDevice(device) => {
+            NlabDevice::RusbDevice(device) => {
                 let mut dfu = dfu_libusb::DfuLibusb::from_usb_device(
                     device.clone(),
                     device.open()?,
@@ -277,18 +277,18 @@ impl NscopeLink {
         Ok(())
     }
 
-    /// Requests the nScope to jump to DFU mode
+    /// Requests the nLab to jump to DFU mode
     ///
-    /// Fails if the nScope is in DFU mode or is unavailable
+    /// Fails if the nLab is in DFU mode or is unavailable
     pub fn request_dfu(&self) -> Result<(), Box<dyn Error>> {
         if self.in_dfu {
-            return Err("nScope is already in DFU mode".into());
+            return Err("nLab is already in DFU mode".into());
         }
         match &self.device {
-            NscopeDevice::HidApiDevice { .. } => {
-                return Err("Unsupported for nScope v1".into());
+            NlabDevice::HidApiDevice { .. } => {
+                return Err("Unsupported for nLab v1".into());
             }
-            NscopeDevice::RusbDevice(device) => {
+            NlabDevice::RusbDevice(device) => {
                 let out_buffer = [0u8, 6u8];
                 let device_handle = device.open()?;
                 device_handle.claim_interface(0)?;
@@ -301,15 +301,15 @@ impl NscopeLink {
 
 impl fmt::Debug for LabBench {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:#?}", self.list().collect::<Vec<NscopeLink>>())
+        write!(f, "{:#?}", self.list().collect::<Vec<NlabLink>>())
     }
 }
 
-impl fmt::Debug for NscopeLink {
+impl fmt::Debug for NlabLink {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let device_name = match &self.device {
-            NscopeDevice::HidApiDevice { .. } => { "nScope v1" }
-            NscopeDevice::RusbDevice(_) => { "nScope v2" }
+            NlabDevice::HidApiDevice { .. } => { "nLab v1" }
+            NlabDevice::RusbDevice(_) => { "nLab v2" }
         };
         if self.in_dfu {
             write!(

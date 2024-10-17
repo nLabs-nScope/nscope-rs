@@ -8,7 +8,7 @@ use crate::scope::{commands, StatusResponseLegacy};
 use crate::scope::commands::Command;
 
 
-impl crate::Nscope {
+impl crate::Nlab {
     pub(crate) fn run_v1(
         hid_device: HidDevice,
         command_tx: Sender<Command>,
@@ -65,7 +65,7 @@ impl crate::Nscope {
                     outgoing_usb_buffer[2] = request_id;
                 }
                 if hid_device.write(&outgoing_usb_buffer).is_err() {
-                    eprintln!("USB write error, ending nScope connection");
+                    eprintln!("USB write error, ending nLab connection");
                     break 'communication;
                 }
 
@@ -75,13 +75,13 @@ impl crate::Nscope {
                 active_requests_map.insert(request_id, command);
                 trace!("Sent request {}", request_id);
             } else if hid_device.write(&commands::NULL_REQ).is_err() {
-                eprintln!("USB write error, ending nScope connection");
+                eprintln!("USB write error, ending nLab connection");
                 break 'communication;
             }
 
             // Read the incoming command and process it
             if hid_device.read(&mut incoming_usb_buffer).is_err() {
-                eprintln!("USB read error, ending nScope connection");
+                eprintln!("USB read error, ending nLab connection");
                 break 'communication;
             }
 

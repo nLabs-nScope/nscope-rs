@@ -1,14 +1,14 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
-use nscope::{AnalogSignalPolarity, LabBench, Trigger, TriggerType};
+use nlabapi::{AnalogSignalPolarity, LabBench, Trigger, TriggerType};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -17,21 +17,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create a LabBench
     let bench = LabBench::new()?;
 
-    // Open the first available nScope
-    let nscope = bench.open_first_available(true)?;
+    // Open the first available nLab
+    let nlab = bench.open_first_available(true)?;
 
-    nscope.a1.turn_on();
+    nlab.a1.turn_on();
 
-    let sweep_handle = nscope.request(8000.0, 19200, None);
+    let sweep_handle = nlab.request(8000.0, 19200, None);
 
     for sample in sweep_handle.receiver {
         println!("{:?}", sample.data);
     }
 
-    nscope.a1.turn_off();
+    nlab.a1.turn_off();
     
     
-    let sweep_handle = nscope.request(8000.0, 19200, Some(Trigger{
+    let sweep_handle = nlab.request(8000.0, 19200, Some(Trigger{
         is_enabled: true,
         trigger_type: TriggerType::RisingEdge,
         source_channel: 0,
@@ -39,8 +39,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         trigger_delay_us: 0,
     }));
 
-    nscope.a1.set_polarity(AnalogSignalPolarity::Bipolar);
-    nscope.a1.turn_on();
+    nlab.a1.set_polarity(AnalogSignalPolarity::Bipolar);
+    nlab.a1.turn_on();
     for sample in sweep_handle.receiver {
         println!("{:?}", sample.data);
     }

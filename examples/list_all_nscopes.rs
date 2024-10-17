@@ -1,14 +1,14 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
-use nscope::LabBench;
+use nlabapi::LabBench;
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -17,13 +17,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create a LabBench
     let bench = LabBench::new()?;
 
-    // Print the bench to show a list of detected nScopes
+    // Print the bench to show a list of detected nLabs
     println!("Lab Bench: \n{:?}", bench);
 
-    println!("\nManual list of all detected nScopes:");
-    // Or loop over all nScope links in the list and print them
-    for nscope_link in bench.list() {
-        println!("    {:?}", nscope_link)
+    println!("\nManual list of all detected nLabs:");
+    // Or loop over all nLab links in the list and print them
+    for nlab_link in bench.list() {
+        println!("    {:?}", nlab_link)
     }
     Ok(())
 }

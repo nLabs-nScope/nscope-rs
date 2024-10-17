@@ -1,17 +1,17 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
 use git_version::git_version;
 use regex::Regex;
 
-/// Returns the current version of the nScope API
+/// Returns the current version of the nLab API
 pub fn version() -> String {
     let git_description = git_version!(
         args = ["--always", "--tags", "--dirty"],
