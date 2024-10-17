@@ -1,8 +1,8 @@
-# nscope-rs
-[![Crates.io](https://img.shields.io/crates/v/nscope)](https://crates.io/crates/nscope)
-[![License](https://img.shields.io/crates/l/nscope)](LICENSE)
-[![Documentation](https://docs.rs/nscope/badge.svg)](https://docs.rs/nscope)
+# nlabapi
+[![Crates.io](https://img.shields.io/crates/v/nlabapi)](https://crates.io/crates/nlabapi)
+[![License](https://img.shields.io/crates/l/nlabpi)](LICENSE)
+[![Documentation](https://docs.rs/nlabapi/badge.svg)](https://docs.rs/nlabapi)
 
-![Cargo Test](https://github.com/nLabs-nScope/nscope-rs/actions/workflows/tests.yml/badge.svg)
+![Cargo Test](https://github.com/nLabs-nScope/nlabapi/actions/workflows/tests.yml/badge.svg)
 
-A Rust implementation of the nScope API.
+Low-level software interface for nLab devices

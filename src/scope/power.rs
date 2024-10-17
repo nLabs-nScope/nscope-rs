@@ -1,17 +1,17 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
 use std::io;
-use super::Nscope;
+use super::Nlab;
 
-/// Information about the power supply status of nScope
+/// Information about the power supply status of nLab
 #[derive(Debug, Copy, Clone)]
 pub struct PowerStatus {
     pub state: PowerState,
@@ -27,7 +27,7 @@ impl Default for PowerStatus {
     }
 }
 
-/// Possible states of the nScope power supply
+/// Possible states of the nLab power supply
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PowerState {
     PowerOff,
@@ -51,12 +51,12 @@ impl From<u8> for PowerState {
     }
 }
 
-impl Nscope {
+impl Nlab {
     pub fn power_status(&self) -> Result<PowerStatus, io::Error> {
         if !self.is_connected() {
             return Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
-                "nScope connection aborted",
+                "nLab connection aborted",
             ));
         }
         Ok(*self.power_status.read().unwrap())

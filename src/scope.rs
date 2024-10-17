@@ -1,10 +1,10 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
@@ -25,7 +25,7 @@ use commands::Command;
 use power::PowerStatus;
 use pulse_output::PulseOutput;
 use trigger::Trigger;
-use crate::lab_bench::NscopeDevice;
+use crate::lab_bench::NlabDevice;
 
 mod commands;
 pub mod analog_input;
@@ -36,14 +36,14 @@ pub mod power;
 pub mod data_requests;
 mod run_loops;
 
-enum NscopeHandle {
-    NscopeLegacy(HidDevice),
-    Nscope(rusb::DeviceHandle<rusb::GlobalContext>),
+enum NlabHandle {
+    NlabLegacy(HidDevice),
+    Nlab(rusb::DeviceHandle<rusb::GlobalContext>),
 }
 
-/// Primary interface to the nScope, used to set outputs,
+/// Primary interface to the nLab, used to set outputs,
 /// trigger sweeps of input data on scope channels, and monitor power state
-pub struct Nscope {
+pub struct Nlab {
     pub a1: AnalogOutput,
     pub a2: AnalogOutput,
     pub p1: PulseOutput,
@@ -60,22 +60,22 @@ pub struct Nscope {
     join_handle: Option<JoinHandle<()>>,
 }
 
-impl fmt::Debug for Nscope {
+impl fmt::Debug for Nlab {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "nScope v1 [ connected: {} ]", self.is_connected())
+        write!(f, "nLab v1 [ connected: {} ]", self.is_connected())
     }
 }
 
-impl Nscope {
-    /// Create a new Nscope object
-    pub(crate) fn new(dev: &NscopeDevice, power_on: bool) -> Result<Self, Box<dyn Error>> {
-        let device_handle: NscopeHandle = match dev {
-            NscopeDevice::HidApiDevice { device, api } => {
+impl Nlab {
+    /// Create a new Nlab object
+    pub(crate) fn new(dev: &NlabDevice, power_on: bool) -> Result<Self, Box<dyn Error>> {
+        let device_handle: NlabHandle = match dev {
+            NlabDevice::HidApiDevice { device, api } => {
                 let api = api.read().unwrap();
-                NscopeHandle::NscopeLegacy(device.open_device(&api)?)
+                NlabHandle::NlabLegacy(device.open_device(&api)?)
             }
-            NscopeDevice::RusbDevice(device) => {
-                NscopeHandle::Nscope(device.open()?)
+            NlabDevice::RusbDevice(device) => {
+                NlabHandle::Nlab(device.open()?)
             }
         };
 
@@ -94,21 +94,21 @@ impl Nscope {
 
         let mut is_legacy = false;
         let join_handle = match device_handle {
-            NscopeHandle::NscopeLegacy(hid_device) => {
+            NlabHandle::NlabLegacy(hid_device) => {
                 is_legacy = true;
                 communication_thread.spawn(move || {
-                    Nscope::run_v1(hid_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
+                    Nlab::run_v1(hid_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
             }
-            NscopeHandle::Nscope(usb_device) => {
+            NlabHandle::Nlab(usb_device) => {
                 usb_device.claim_interface(0)?;
                 communication_thread.spawn(move || {
-                    Nscope::run_v2(usb_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
+                    Nlab::run_v2(usb_device, backend_command_tx, command_rx, backend_fw_version, backend_power_status);
                 }).ok()
             }
         };
 
-        let scope = Nscope {
+        let scope = Nlab {
             a1: AnalogOutput::create(command_tx.clone(), 0),
             a2: AnalogOutput::create(command_tx.clone(), 1),
             p1: PulseOutput::create(command_tx.clone(), 0),
@@ -127,12 +127,12 @@ impl Nscope {
         let (init_tx, init_rx) = mpsc::channel::<()>();
         if scope.command_tx.send(Command::Initialize(power_on, init_tx)).is_ok() {
             if is_legacy {
-                info!("Connected to nScope legacy firmware v{}", scope.version().unwrap() as f64 / 10.0);
+                info!("Connected to nLab legacy firmware v{}", scope.version().unwrap() as f64 / 10.0);
                 return Ok(scope);
             }
             // Wait for the response from the backend
             if init_rx.recv_timeout(Duration::from_secs(5)).is_ok() {
-                info!("Connected to nScope firmware 0x{:04X}", scope.version().unwrap());
+                info!("Connected to nLab firmware 0x{:04X}", scope.version().unwrap());
                 return Ok(scope);
             }
         }
@@ -158,15 +158,15 @@ impl Nscope {
     pub fn fw_version(&self) -> Result<u8, Box<dyn Error>> {
         if let Some(full_version) = *self.fw_version.read().unwrap() {
             if (full_version & 0xFF00) != 0 {
-                return Err("Connected to nScope v2 or newer, use scope.version() to read".into());
+                return Err("Connected to nLab v2 or newer, use scope.version() to read".into());
             }
             return Ok(full_version as u8);
         }
-        Err("Cannot read nScope version".into())
+        Err("Cannot read nLab version".into())
     }
 
     pub fn version(&self) -> Result<u16, Box<dyn Error>> {
-        self.fw_version.read().unwrap().ok_or_else(|| "Cannot read nScope version".into())
+        self.fw_version.read().unwrap().ok_or_else(|| "Cannot read nLab version".into())
     }
 
     pub fn analog_output(&self, channel: usize) -> Option<&AnalogOutput> {
@@ -196,8 +196,8 @@ impl Nscope {
     }
 }
 
-/// When an Nscope goes out of scope, we need to exit the IO loop
-impl Drop for Nscope {
+/// When an Nlab goes out of scope, we need to exit the IO loop
+impl Drop for Nlab {
     fn drop(&mut self) {
         // Send a quit command to the IO loop
         let _ = self.command_tx.send(Command::Quit);

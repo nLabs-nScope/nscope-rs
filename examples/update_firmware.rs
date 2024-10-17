@@ -1,14 +1,14 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
-use nscope::LabBench;
+use nlabapi::LabBench;
 use std::error::Error;
 use std::thread;
 use std::time::Duration;
@@ -19,14 +19,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create a LabBench
     let mut bench = LabBench::new()?;
 
-    // Print the bench to show a list of detected nScopes
+    // Print the bench to show a list of detected nLabs
     println!("{:?}", bench);
 
-    for nscope_link in bench.list() {
-        // Request DFU on any nScope that is available
-        if nscope_link.available {
-            if let Err(e) = nscope_link.request_dfu() {
-                println!("Failed to request DFU on an available nScope: {e}")
+    for nlab_link in bench.list() {
+        // Request DFU on any nLab that is available
+        if nlab_link.available {
+            if let Err(e) = nlab_link.request_dfu() {
+                println!("Failed to request DFU on an available nLab: {e}")
             }
         }
     }
@@ -38,9 +38,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Print the bench to show the refreshed list
     println!("{:?}", bench);
 
-    for nscope_link in bench.list() {
-        if let Err(e) = nscope_link.update() {
-            println!("Encountered an error updating nScope: {e}")
+    for nlab_link in bench.list() {
+        if let Err(e) = nlab_link.update() {
+            println!("Encountered an error updating nLab: {e}")
         }
     }
 
