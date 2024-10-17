@@ -1,10 +1,10 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
@@ -18,7 +18,7 @@ use log::{trace, debug};
 use super::AnalogInput;
 use super::Command;
 use super::commands::ScopeCommand;
-use super::Nscope;
+use super::Nlab;
 use super::Trigger;
 
 /// Voltage information from all open channels at a given time
@@ -48,7 +48,7 @@ pub(crate) struct DataRequest {
     data_collator: Arc<RwLock<[VecDeque<u16>; 4]>>,
 }
 
-/// Handle to an ongoing data sweep, holds received data from nScope
+/// Handle to an ongoing data sweep, holds received data from nLab
 #[derive(Debug)]
 pub struct SweepHandle {
     pub receiver: Receiver<Sample>,
@@ -56,7 +56,7 @@ pub struct SweepHandle {
     stop_send: Sender<()>,
 }
 
-impl Nscope {
+impl Nlab {
     pub fn request(&self, sample_rate_hz: f64, number_of_samples: u32, trigger: Option<Trigger>) -> SweepHandle {
         let (tx, rx) = mpsc::channel::<Sample>();
         let (stop_send, stop_recv) = mpsc::channel::<()>();

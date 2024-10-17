@@ -1,14 +1,14 @@
 [package]
-name = "nscope"
+name = "nlabapi"
 version = "1.0.0"
-authors = ["David Meyer <david@nscope.org>"]
+authors = ["David Meyer <david@getnlab.com>"]
 license = "GPL-3.0"
 description = """
-Communication with nScope devices
+Communication with nLab devices
 """
-homepage = "https://www.nscope.org"
-repository = "https://github.com/nLabs-nScope/nscope-rs"
-documentation = "https://github.com/nLabs-nScope/nscope-rs"
+homepage = "https://www.getnlab.com"
+repository = "https://github.com/nLabs-nScope/nlabapi"
+documentation = "https://github.com/nLabs-nScope/nlabapi"
 readme = "README.md"
 edition = "2018"
 

@@ -1,14 +1,14 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
-use nscope::{LabBench, Nscope};
+use nlabapi::{LabBench, Nlab};
 use std::{thread, time};
 use std::error::Error;
 
@@ -18,15 +18,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create a LabBench
     let bench = LabBench::new()?;
 
-    // Open all available nScope links
-    let mut nscopes: Vec<Nscope> = bench.open_all_available();
+    // Open all available nLab links
+    let mut nlabs: Vec<Nlab> = bench.open_all_available();
 
     loop {
         thread::sleep(time::Duration::from_millis(10));
 
-        nscopes.retain(|n| n.is_connected());
+        nlabs.retain(|n| n.is_connected());
 
-        for n in nscopes.iter() {
+        for n in nlabs.iter() {
             match n.power_status() {
                 Ok(status) => {
                     let state = format!("{:?}", status.state);
@@ -36,8 +36,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        if nscopes.is_empty() {
-            return Err("Cannot find any nScopes".into())
+        if nlabs.is_empty() {
+            return Err("Cannot find any nLabs".into())
         }
     }
 }
