@@ -174,7 +174,7 @@ impl NscopeLink {
 
             if vendor_id == 0x0483 && product_id == 0xA4AA {
                 let mut available = false;
-                if let Ok(mut dev) = device.open() {
+                if let Ok(dev) = device.open() {
                     if let Ok(()) = dev.claim_interface(0) {
                         available = true;
                     }
@@ -290,7 +290,7 @@ impl NscopeLink {
             }
             NscopeDevice::RusbDevice(device) => {
                 let out_buffer = [0u8, 6u8];
-                let mut device_handle = device.open()?;
+                let device_handle = device.open()?;
                 device_handle.claim_interface(0)?;
                 device_handle.write_bulk(0x01, &out_buffer, Duration::from_millis(100))?;
             }
