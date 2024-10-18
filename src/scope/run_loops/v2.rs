@@ -7,7 +7,7 @@ use crate::PowerStatus;
 use crate::scope::commands::{Command, ScopeCommand};
 use crate::scope::StatusResponse;
 
-impl crate::Nscope {
+impl crate::Nlab {
     pub(crate) fn run_v2(
         usb_device: DeviceHandle<rusb::GlobalContext>,
         command_tx: Sender<Command>,
@@ -98,7 +98,7 @@ impl crate::Nscope {
                     power_status.write().unwrap().usage = response.power_usage as f64 / 1000.0 * 5.0;
 
                     if response.request_id == 0 {
-                        trace!("Received a status update from nScope");
+                        trace!("Received a status update from nLab");
                     } else if let Some((id, command)) = &active_comms_request {
                         // If we have an active request with this ID
                         if *id == response.request_id {

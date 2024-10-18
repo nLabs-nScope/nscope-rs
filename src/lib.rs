@@ -1,42 +1,42 @@
 /***************************************************************************************************
  *
  *  nLabs, LLC
- *  https://nscope.org
+ *  https://getnlab.com
  *  Copyright(c) 2020. All Rights Reserved
  *
- *  This file is part of the nScope API
+ *  This file is part of the nLab API
  *
  **************************************************************************************************/
 
-//! This crate provides an interface to the [nScope](https://nscope.org)
+//! This crate provides an interface to the [nLab](https://getnlab.com)
 //!
 //! # Usage
 //!
-//! This crate is [on crates.io](https://crates.io/crates/nscope) and can be
-//! used by adding `nscope` to the dependencies in your project's `Cargo.toml`.
+//! This crate is [on crates.io](https://crates.io/crates/nlabapi) and can be
+//! used by adding `nlab` to the dependencies in your project's `Cargo.toml`.
 //!
 //!
 //! # Example
 //!
 //! ```rust,no_run
-//! extern crate nscope;
-//! use nscope::LabBench;
+//! extern crate nlabapi;
+//! use nlabapi::LabBench;
 //!
 //! fn main() {
 //!     // Create a LabBench
 //!     let bench = LabBench::new().expect("Cannot create LabBench");
 //!
-//!     // Print the bench to show a list of detected nScopes
+//!     // Print the bench to show a list of detected nLabs
 //!     println!("{:?}", bench);
 //!
-//!     // Open an nScope
-//!     let nscope = bench.open_first_available(true).expect("Cannot open nScope");
+//!     // Open an nLab
+//!     let nlab = bench.open_first_available(true).expect("Cannot open nLab");
 //!
 //!     // Turn on analog output channel A1
-//!     nscope.a1.turn_on();
+//!     nlab.a1.turn_on();
 //!
 //!     // Trigger an auto-triggered sweep of 20 samples at 4.0 Hz sample rate
-//!     let sweep_handle = nscope.request(4.0, 20, None);
+//!     let sweep_handle = nlab.request(4.0, 20, None);
 //!
 //!     // Loop through the received data, blocking on each sample until it arrives
 //!     for sample in sweep_handle.receiver {
@@ -45,7 +45,7 @@
 //!     }
 //!
 //!     // Turn off the analog output channel A1
-//!     nscope.a1.turn_off();
+//!     nlab.a1.turn_off();
 //!
 //! }
 //! ```
@@ -58,8 +58,8 @@ mod firmware;
 mod python;
 
 pub use lab_bench::LabBench;
-pub use lab_bench::NscopeLink;
-pub use scope::Nscope;
+pub use lab_bench::NlabLink;
+pub use scope::Nlab;
 pub use scope::power::*;
 pub use scope::pulse_output::*;
 pub use scope::analog_output::*;

@@ -1,15 +1,15 @@
-# nscope-rs
-[![Crates.io](https://img.shields.io/crates/v/nscope)](https://crates.io/crates/nscope)
-[![License](https://img.shields.io/crates/l/nscope)](LICENSE)
-[![Documentation](https://docs.rs/nscope/badge.svg)](https://docs.rs/nscope)
+# nlabapi
+[![Crates.io](https://img.shields.io/crates/v/nlabapi)](https://crates.io/crates/nlabapi)
+[![License](https://img.shields.io/crates/l/nlabpi)](LICENSE)
+[![Documentation](https://docs.rs/nlabapi/badge.svg)](https://docs.rs/nlabapi)
 
-![Cargo Test](https://github.com/nLabs-nScope/nscope-rs/actions/workflows/tests.yml/badge.svg)
+![Cargo Test](https://github.com/nLabs-nScope/nlabapi/actions/workflows/tests.yml/badge.svg)
 
-A Rust implementation of the nScope API.
+Low-level software interface for nLab devices
 
 ## Building from Source
 
-The nScope API can be built and run from source to enable users and developers to quickly iterate on nScope source code. To establish a development environment, follow the steps below.
+The nLab API can be built and run from source to enable users and developers to quickly iterate on nLab source code. To establish a development environment, follow the steps below.
 
 
 ### Prerequisites
@@ -42,8 +42,8 @@ The above commands should print a version successfully.
 ### Clone and Install Development Dependencies
 
 ```shell
-$ git clone https://github.com/nLabs-nScope/nscope-rs.git
-$ cd nscope-rs
+$ git clone https://github.com/nLabs-nScope/nlabapi.git
+$ cd nlabapi
 ```
 
 ### Build and Run
@@ -54,7 +54,7 @@ $ cargo run --example list_all_nscopes
 
 ## Python Development
 
-This project also supports a python interface to the nScope. To set up an environment for python development, follow the steps below.
+This project also supports a python interface to the nLab. To set up an environment for python development, follow the steps below.
 
 ### Prerequisites
 
@@ -72,13 +72,15 @@ $ source venv/bin/activate
 $ pip install maturin
 ```
 
-### Build and install the nscope package for developement
+### Build and install the nlabapi package for developement
 ```shell
 $ maturin develop
 ```
 
-### Build and install the nscope package for developement
+### Build and install the nlabapi package for developement
 ```shell
 $ maturin develop
 $ python examples/list_all_nscopes.py 
 ```
+
+Low-level software interface for nLab devices
