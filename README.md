@@ -75,12 +75,5 @@ $ pip install maturin
 ### Build and install the nlabapi package for developement
 ```shell
 $ maturin develop
+$ python examples/list_all_nlabs.py 
 ```
-
-### Build and install the nlabapi package for developement
-```shell
-$ maturin develop
-$ python examples/list_all_nscopes.py 
-```
-
-Low-level software interface for nLab devices

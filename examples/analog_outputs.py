@@ -1,12 +1,12 @@
-from nscope import LabBench
+from nlabapi import LabBench
 import time
 
-nscope = LabBench.open_first_available()
+nlab = LabBench.open_first_available()
 
-nscope.ax_turn_on(1)
+nlab.ax_turn_on(1)
 time.sleep(10)
-nscope.ax_turn_off(1)
+nlab.ax_turn_off(1)
 
-nscope.ax_turn_on(2)
+nlab.ax_turn_on(2)
 time.sleep(10)
-nscope.ax_turn_off(2)
+nlab.ax_turn_off(2)

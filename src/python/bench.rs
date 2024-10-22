@@ -5,10 +5,10 @@ use crate::{LabBench, python};
 #[pymethods]
 impl python::LabBench {
     #[staticmethod]
-    fn open_first_available() -> PyResult<python::Nscope> {
+    fn open_first_available() -> PyResult<python::Nlab> {
         if let Ok(bench) = LabBench::new() {
             return match bench.open_first_available(true) {
-                Ok(scope) => Ok(python::Nscope(scope)),
+                Ok(scope) => Ok(python::Nlab(scope)),
                 Err(err) => Err(PyRuntimeError::new_err(err)),
             };
         }
@@ -16,10 +16,10 @@ impl python::LabBench {
     }
 
     #[staticmethod]
-    fn list_all_nscopes() {
+    fn list_all_nlabs() {
         if let Ok(bench) = LabBench::new() {
-            for nscope_link in bench.list() {
-                println!("{:?}", nscope_link);
+            for nlab_link in bench.list() {
+                println!("{:?}", nlab_link);
             }
         } else {
             println!("Cannot create LabBench");

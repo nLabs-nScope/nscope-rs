@@ -5,9 +5,9 @@ use crate::{AnalogSignalPolarity, AnalogWaveType, python};
 
 
 #[pymethods]
-impl python::Nscope {
+impl python::Nlab {
     fn ax_is_on(&self, ch: i64) -> PyResult<bool> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -19,7 +19,7 @@ impl python::Nscope {
     }
 
     fn ax_frequency(&self, ch: i64) -> PyResult<f64> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -31,7 +31,7 @@ impl python::Nscope {
     }
 
     fn ax_amplitude(&self, ch: i64) -> PyResult<f64> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -43,7 +43,7 @@ impl python::Nscope {
     }
 
     fn ax_wave_type(&self, ch: i64) -> PyResult<AnalogWaveType> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -55,7 +55,7 @@ impl python::Nscope {
     }
 
     fn ax_polarity(&self, ch: i64) -> PyResult<AnalogSignalPolarity> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -67,7 +67,7 @@ impl python::Nscope {
     }
 
     fn ax_turn_on(&self, ch: i64) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -80,7 +80,7 @@ impl python::Nscope {
     }
 
     fn ax_turn_off(&self, ch: i64) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -93,7 +93,7 @@ impl python::Nscope {
     }
 
     fn ax_set_frequency(&self, ch: i64, desired_hz: f64) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -106,7 +106,7 @@ impl python::Nscope {
     }
 
     fn ax_set_amplitude(&self, ch: i64, desired_volts: f64) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -119,7 +119,7 @@ impl python::Nscope {
     }
 
     fn ax_set_wave_type(&self, ch: i64, wave_type: AnalogWaveType) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,
@@ -132,7 +132,7 @@ impl python::Nscope {
     }
 
     fn ax_set_polarity(&self, ch: i64, polarity: AnalogSignalPolarity) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let ax = match ch {
             1 => &scope.a1,

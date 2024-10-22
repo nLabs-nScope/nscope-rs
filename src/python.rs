@@ -10,13 +10,13 @@ use crate::{AnalogSignalPolarity, AnalogWaveType, PowerStatus, PowerState};
 struct LabBench;
 
 #[pyclass]
-struct Nscope(crate::Nscope);
+struct Nlab(crate::Nlab);
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn nscope(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn nlabapi(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<LabBench>()?;
-    m.add_class::<Nscope>()?;
+    m.add_class::<Nlab>()?;
     m.add_class::<AnalogWaveType>()?;
     m.add_class::<AnalogSignalPolarity>()?;
     m.add_class::<PowerState>()?;

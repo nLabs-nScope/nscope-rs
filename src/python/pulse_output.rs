@@ -5,9 +5,9 @@ use crate::python;
 
 
 #[pymethods]
-impl python::Nscope {
+impl python::Nlab {
     fn px_is_on(&self, ch: i64) -> PyResult<bool> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,
@@ -19,7 +19,7 @@ impl python::Nscope {
     }
 
     fn px_frequency(&self, ch: i64) -> PyResult<f64> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,
@@ -31,7 +31,7 @@ impl python::Nscope {
     }
 
     fn px_duty(&self, ch: i64) -> PyResult<f64> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,
@@ -43,7 +43,7 @@ impl python::Nscope {
     }
 
     fn px_period(&self, ch: i64) -> PyResult<f64> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,
@@ -55,7 +55,7 @@ impl python::Nscope {
     }
 
     fn px_pulse_width(&self, ch: i64) -> PyResult<f64> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,
@@ -67,7 +67,7 @@ impl python::Nscope {
     }
 
     fn px_turn_on(&self, ch: i64) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,
@@ -80,7 +80,7 @@ impl python::Nscope {
     }
 
     fn px_turn_off(&self, ch: i64) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,
@@ -93,7 +93,7 @@ impl python::Nscope {
     }
 
     fn px_set_frequency(&self, ch: i64, desired_hz: f64) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,
@@ -106,7 +106,7 @@ impl python::Nscope {
     }
 
     fn px_set_duty(&self, ch: i64, desired_percentage: f64) -> PyResult<()> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
 
         let px = match ch {
             1 => &scope.p1,

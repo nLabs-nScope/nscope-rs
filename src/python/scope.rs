@@ -4,19 +4,19 @@ use pyo3::prelude::*;
 use crate::{PowerStatus, python, Sample};
 
 #[pymethods]
-impl python::Nscope {
+impl python::Nlab {
     fn is_connected(&self) -> bool {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
         scope.is_connected()
     }
 
     fn close(&mut self) {
-        let scope: &mut crate::Nscope = &mut self.0;
+        let scope: &mut crate::Nlab = &mut self.0;
         scope.close()
     }
 
     fn version(&self) -> PyResult<u16> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
         match scope.version() {
             Ok(version) => Ok(version),
             Err(_) => Err(PyRuntimeError::new_err("Cannot read nScope version")),
@@ -24,7 +24,7 @@ impl python::Nscope {
     }
 
     fn power_status(&self) -> PyResult<PowerStatus> {
-        let scope: &crate::Nscope = &self.0;
+        let scope: &crate::Nlab = &self.0;
         match scope.power_status() {
             Ok(status) => Ok(status),
             Err(error) => Err(PyRuntimeError::new_err(error)),
@@ -32,7 +32,7 @@ impl python::Nscope {
     }
 
     fn read_all_channels(&mut self, sample_rate: f64, number_of_samples: u32) -> PyResult<Vec<Vec<Option<f64>>>> {
-        let scope: &mut crate::Nscope = &mut self.0;
+        let scope: &mut crate::Nlab = &mut self.0;
         scope.ch1.turn_on();
         scope.ch2.turn_on();
         scope.ch3.turn_on();

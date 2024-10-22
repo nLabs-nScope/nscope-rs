@@ -3,7 +3,7 @@ requires = ["maturin>=1.5,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "nscope"
+name = "nlabapi"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
@@ -12,4 +12,5 @@ classifiers = [
 ]
 dynamic = ["version"]
 [tool.maturin]
+module-name = "nlabapi"
 features = ["pyo3/extension-module"]
