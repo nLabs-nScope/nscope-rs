@@ -20,7 +20,7 @@ use super::commands::Command;
 
 /// Possible analog output signal types
 #[derive(Debug, PartialEq, Copy, Clone)]
-#[pyclass]
+#[pyclass(eq, eq_int)]
 pub enum AnalogWaveType {
     Sine = 0,
     Triangle = 1,
@@ -39,7 +39,7 @@ impl FromStr for AnalogWaveType {
 
 /// Possible analog output polarities
 #[derive(Debug, PartialEq, Copy, Clone)]
-#[pyclass]
+#[pyclass(eq, eq_int)]
 pub enum AnalogSignalPolarity {
     Unipolar = 0,
     Bipolar = 1,

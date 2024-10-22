@@ -40,7 +40,7 @@ impl PowerStatus {
 
 /// Possible states of the nLab power supply
 #[derive(Debug, PartialEq, Copy, Clone)]
-#[pyclass]
+#[pyclass(eq, eq_int)]
 pub enum PowerState {
     PowerOff,
     PowerOn,
