@@ -5,11 +5,31 @@
 
 ![Cargo Test](https://github.com/nLabs-nScope/nlabapi/actions/workflows/tests.yml/badge.svg)
 
-Low-level software interface for nLab devices
+Low-level software interface for nLab devices. Libraries for Python and Rust are available. The recommended easy way to access data straight from the nLab is the python interface, provided by the `nlabapi` python package.
 
-## Using the Python Interface
+## Python Usage
 
+1. Install the `nlabapi` python package
 
+On an existing python installation, use `pip` to install the nlabapi package
+```shell
+$ pip install nlabapi
+```
+
+2. Test Import and Usage of `nlabapi`
+Entering the above one-liner python program using `python -c` should print a list of all connected nLabs.
+
+```shell
+$ python -c "import nlabapi; nlabapi.LabBench.list_all_nlabs()"
+Link to nLab v2 [ available: true ]
+```
+
+3. Write your own scripts, or use the examples
+```shell
+$ python examples/list_all_nlabs.py
+List of all detected nScopes:
+Link to nLab v2 [ available: true ]
+```
 
 ## Building from Source
 
