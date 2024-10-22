@@ -9,12 +9,16 @@
  **************************************************************************************************/
 
 use std::io;
+use pyo3::{pyclass, pymethods};
 use super::Nlab;
 
 /// Information about the power supply status of nLab
 #[derive(Debug, Copy, Clone)]
+#[pyclass]
 pub struct PowerStatus {
+    #[pyo3(get)]
     pub state: PowerState,
+    #[pyo3(get)]
     pub usage: f64,
 }
 
@@ -27,8 +31,16 @@ impl Default for PowerStatus {
     }
 }
 
+#[pymethods]
+impl PowerStatus {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 /// Possible states of the nLab power supply
 #[derive(Debug, PartialEq, Copy, Clone)]
+#[pyclass(eq, eq_int)]
 pub enum PowerState {
     PowerOff,
     PowerOn,
