@@ -10,6 +10,7 @@ use pyo3::prelude::*;
 use crate::{AnalogSignalPolarity, AnalogWaveType, PowerStatus, PowerState, LabBench as NativeLabBench};
 use cli::{Cli, Commands};
 use clap::Parser;
+use pyo3::exceptions::PyRuntimeError;
 
 #[pyfunction]
 fn run_cli(_py: Python) -> PyResult<()> {
@@ -23,19 +24,23 @@ fn run_cli(_py: Python) -> PyResult<()> {
                     // Request DFU on any nLab that is available
                     if nlab_link.available {
                         if let Err(e) = nlab_link.request_dfu() {
-                            println!("Failed to request DFU on an available nLab: {e}")
+                            println!("Failed to request DFU on an available nLab: {e}");
+                            return Err(PyRuntimeError::new_err(format!("{e}")));
                         }
                     }
                 }
+                println!("Updating all connected nLabs...");
                 // Wait 500ms for the scope to detach and re-attach as DFU
                 thread::sleep(Duration::from_millis(500));
                 bench.refresh();
 
                 for nlab_link in bench.list() {
                     if let Err(e) = nlab_link.update() {
-                        println!("Encountered an error updating nLab: {e}")
+                        println!("Encountered an error updating nLab: {e}");
+                        return Err(PyRuntimeError::new_err(format!("{e}")));
                     }
                 }
+                println!("Update complete!");
             }
         }
     }
