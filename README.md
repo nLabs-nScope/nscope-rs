@@ -4,6 +4,7 @@
 [![Documentation](https://docs.rs/nlabapi/badge.svg)](https://docs.rs/nlabapi)
 
 ![Cargo Test](https://github.com/nLabs-nScope/nlabapi/actions/workflows/tests.yml/badge.svg)
+![Python CI](https://github.com/nLabs-nScope/nlabapi/actions/workflows/build_python.yml/badge.svg)
 
 Low-level software interface for nLab devices. Libraries for Python and Rust are available. The recommended easy way to access data straight from the nLab is the python interface, provided by the `nlabapi` python package.
 

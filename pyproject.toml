@@ -5,12 +5,15 @@ build-backend = "maturin"
 [project]
 name = "nlabapi"
 requires-python = ">=3.8"
-readme = "README.md"
 license = { file = "LICENSE" }
 dynamic = ["version"]
 
 [project.scripts]
 nlab = "nlabapi:run_cli"
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
 
 [tool.maturin]
 module-name = "nlabapi"

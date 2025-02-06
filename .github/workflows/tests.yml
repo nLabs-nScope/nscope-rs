@@ -3,6 +3,8 @@ name: Cargo Test
 on:
   push:
     branches: [ main, develop ]
+    tags:
+      - '*'
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
